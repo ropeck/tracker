@@ -1,0 +1,12 @@
+[
+  {
+    "tag_id": "1234ABCD",
+    "item": "USB-C power bank",
+    "location": "desk drawer 1",
+    "last_seen": "2025-04-19T10:00:00Z",
+    "domain": "battery",
+    "charge_level": 85,
+    "trip_ready": true,
+    "quantity": 1
+  }
+]
