@@ -31,3 +31,17 @@ We all accumulate gear, cables, tools, and sentimental objects that eventually b
 - `/domain/` - Rules for USB cables, batteries, AV gear, etc.
 - `/data/` - Example logs, tag maps
 - `/docs/` - Vision, ideas, and future directions
+
+---
+
+## MVP Status - April 19, 2025 ✅
+
+The following core system features are live at [https://home.fogcat5.com](https://home.fogcat5.com):
+
+- Upload photos from the web interface
+- View uploaded photo history with timestamps
+- Deployed via Docker + Kubernetes on GKE
+- Full domain name + HTTPS with cert-manager and Let's Encrypt
+- NGINX ingress configured for larger image uploads
+
+Next step: integrate ChatGPT Vision API to extract tags from photo uploads.

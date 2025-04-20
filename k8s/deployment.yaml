@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: home-app
-          image: home-app:latest
-          imagePullPolicy: Never
+          image: fogcat5/home-app:v3
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           volumeMounts:

@@ -4,8 +4,10 @@ metadata:
   name: home-app
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  ingressClassName: nginx
   rules:
     - host: home.fogcat5.com
       http:
