@@ -1,0 +1,7 @@
+authlib
+fastapi
+itsdangerous
+openai
+pillow
+python-multipart
+uvicorn
