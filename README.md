@@ -2,7 +2,6 @@
 
 ![Cross-stitched $HOME](docs/crossstitch.png)
 
-
 A smart, AI-assisted inventory and object tracking system designed to bring order to physical clutter. Combines NFC tagging, photo metadata, and domain-specific reasoning to support memory, cleanup, travel prep, and donation workflows.
 
 ---
