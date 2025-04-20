@@ -1,91 +1,33 @@
-# Slack Thread Watcher
+# Home Inventory & Object Memory System
 
-A personal web app that shows the most recent Slack threads from selected internal channels. Useful for reviewing team updates each morning — especially on mobile.
+![Cross-stitched $HOME](docs/crossstitch.png)
 
----
 
-## 🔧 Features
-
-- Extracts thread content from specific Slack channels using Playwright automation
-- Displays messages in a clean, mobile-friendly web interface
-- Built with FastAPI + vanilla HTML/JS
-- Deployable to GKE or locally via Docker/Kubernetes
+A smart, AI-assisted inventory and object tracking system designed to bring order to physical clutter. Combines NFC tagging, photo metadata, and domain-specific reasoning to support memory, cleanup, travel prep, and donation workflows.
 
 ---
 
-## 📸 Screenshot
+## Why This Exists
 
-> _(optional — add a screenshot of the UI here)_
-
----
-
-## 🛠️ Setup Instructions
-
-### 1. Clone and Setup Virtualenv
-```bash
-git clone https://github.com/yourname/slack-thread-watcher.git
-cd slack-thread-watcher
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Run the Fetch Script
-This opens Slack via Playwright (with saved login) and extracts active threads:
-```bash
-python scraper/fetch_threads.py
-```
-
-Output is written to:
-```
-output/threads.json
-```
-
-### 3. Start the Web UI
-```bash
-uvicorn slack_status_webapp:app --reload
-```
-
-Then visit: [http://localhost:8000](http://localhost:8000)
+We all accumulate gear, cables, tools, and sentimental objects that eventually blur into a pile. This system helps catalog them *with context* — where they are, what they're for, whether they're still needed — and gives gentle guidance when it's time to find, use, or let go.
 
 ---
 
-## 🔒 Authentication
+## Core Ideas
 
-This app currently uses a saved browser session. A Slack app is not required (and may not be allowed on your corporate workspace). GCP OAuth login support is planned.
-
----
-
-## 🚀 Deployment Ideas
-
-- ✅ Run as a local tool on your laptop
-- ☁️ Deploy to GKE with SSL on `slack.fogcat5.com`
-- 🔁 Set up a Kubernetes CronJob to update threads hourly
-- 🔐 Add Google OAuth to restrict access
+- NFC tags + readers on bins, shelves, tools
+- Photo recognition + AI tagging
+- ChatGPT-style prompts like:
+  - “Where does this go?”
+  - “Do I already have one?”
+  - “Is this ready to take on a trip?”
+- Travel checklists, donation suggestions, usage stats
 
 ---
 
-## 📂 Project Structure
+## Modules
 
-```
-slack-thread-watcher/
-├── scraper/                  # Python script using Playwright
-├── output/threads.json       # Saved thread data
-├── slack_status_webapp.py    # FastAPI server
-├── static/                   # Static JS/CSS assets (optional)
-├── templates/                # HTML templates (optional)
-├── run.sh                    # Shortcut launcher (optional)
-└── requirements.txt
-```
-
----
-
-## 🙋‍♂️ Author
-
-**Rodney Peck** — [fogcat5.com](https://fogcat5.com)
-
----
-
-## 📄 License
-
-MIT License (or feel free to customize for internal use)
+- `/scripts/` - Readers, loggers, photo processors
+- `/domain/` - Rules for USB cables, batteries, AV gear, etc.
+- `/data/` - Example logs, tag maps
+- `/docs/` - Vision, ideas, and future directions
