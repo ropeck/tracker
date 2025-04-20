@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-app
+  template:
+    metadata:
+      labels:
+        app: home-app
+    spec:
+      containers:
+        - name: home-app
+          image: home-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: uploads
+              mountPath: /data
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: home-app-pvc
