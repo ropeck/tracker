@@ -15,7 +15,7 @@ $(VENV)/bin/activate:
 	@echo "⬆️  Upgrading pip..."
 	$(PIP) install --upgrade pip
 	@echo "📦 Installing required packages..."
-	$(PIP) install fastapi python-multipart uvicorn pillow openai jinja2
+	$(PIP) install fastapi python-multipart uvicorn pillow openai jinja2 dotenv
 
 clean:
 	@echo "🧹 Cleaning up..."

@@ -1,6 +1,8 @@
 authlib
+dotenv
 fastapi
 itsdangerous
+jinja2
 openai
 pillow
 python-multipart

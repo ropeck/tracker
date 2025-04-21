@@ -14,13 +14,16 @@ spec:
     spec:
       containers:
         - name: home-app
-          image: fogcat5/home-app:v3
+          image: fogcat5/home-app:v4
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
           volumeMounts:
             - name: uploads
               mountPath: /data
+          envFrom:
+            - secretRef:
+               name: tracker-secrets
       volumes:
         - name: uploads
           persistentVolumeClaim:
