@@ -26,10 +26,14 @@ We all accumulate gear, cables, tools, and sentimental objects that eventually b
 
 ## Modules
 
-- `/scripts/` - Readers, loggers, photo processors
-- `/domain/` - Rules for USB cables, batteries, AV gear, etc.
-- `/data/` - Example logs, tag maps
-- `/docs/` - Vision, ideas, and future directions
+- `/scripts/logger.py` – Web app, photo upload, search
+- `/scripts/vision.py` – OpenAI Vision API wrapper
+- `/scripts/auth.py` – Google OAuth2 integration
+- `/templates/` – HTML templates for gallery and layout
+- `/uploads/` – User images, thumbnails, and AI-generated summaries
+- `/data/` – (Reserved) for structured object metadata and tag maps
+- `/docs/` – Planning, vision, usage notes, and changelogs
+
 
 ---
 
@@ -43,4 +47,23 @@ The following core system features are live at [https://home.fogcat5.com](https:
 - Full domain name + HTTPS with cert-manager and Let's Encrypt
 - NGINX ingress configured for larger image uploads
 
-Next step: integrate ChatGPT Vision API to extract tags from photo uploads.
+## [2025-04-20] MVP Deployment Complete
+
+- 🧠 Added OpenAI Vision API integration with GPT-4o
+- 📷 File uploads with image preview and thumbnailing
+- 🔍 Inventory object detection and tagging from photos
+- 🔐 OAuth2 login via Google, restricted to `fogcat5@gmail.com`
+- 🔄 Working on K8s at `https://home.fogcat5.com`
+- 🔎 Basic query/search for tags
+- 🧼 Secrets and API keys now injected via K8s secret volume
+- 📁 Auto-organizing project directory (`scripts`, `templates`, `uploads`, etc.)
+  
+## What's Next
+
+- Queue background tasks to:
+  - Enhance tagging with follow-up prompts
+  - Suggest better naming/categories
+  - Detect objects needing multiple views (e.g., mouse underside)
+- Admin interface for tag cleanup and reprocessing
+- NFC tag sync and label printing
+- More natural language queries

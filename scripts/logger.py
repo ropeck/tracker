@@ -38,8 +38,6 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
-from auth import get_current_user
-from auth import router as auth_router
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,11 +46,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
-from vision import analyze_image_with_openai
+
+from scripts.auth import get_current_user
+from scripts.auth import router as auth_router
+from scripts.vision import analyze_image_with_openai
 
 load_dotenv()
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="scripts/templates")
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="some-random-secret-you-wont-guess")
