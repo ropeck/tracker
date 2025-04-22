@@ -46,6 +46,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
+from google.cloud import storage
 
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
@@ -66,6 +67,9 @@ META_FILE = UPLOAD_DIR / "metadata.json"
 if not META_FILE.exists():
     META_FILE.write_text("[]")
 
+GCS_BUCKET = "fogcat5-home"
+GCS_UPLOAD_PREFIX = "upload"
+
 # Allow phone testing
 app.add_middleware(
     CORSMiddleware,
@@ -75,6 +79,14 @@ app.add_middleware(
 )
 
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+
+def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
+    client = storage.Client.from_service_account_json("/app/service-account-key.json")
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_file(file_obj, rewind=True)
+    return blob.url
 
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -109,7 +121,10 @@ async def protected_upload(
 
     with file_path.open("wb") as buffer:
         shutil.copyfileobj(upload.file, buffer)
-    
+        with file_path.open("rb") as fh:
+            upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/{filename}", fh)
+
+
     # Analyze with Vision API
     result = analyze_image_with_openai(str(file_path))
 
@@ -117,12 +132,17 @@ async def protected_upload(
     summary_path = UPLOAD_DIR / f"{filename}.summary.txt"
     with open(summary_path, "w") as summary_file:
         summary_file.write(result["summary"])
+    with open(summary_path, "rb") as fh:
+        upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt", fh)
 
     # Generate thumbnail
     thumb_path = UPLOAD_DIR / f"{filename}.thumb.jpg"
     with Image.open(file_path) as img:
         img.thumbnail((300, 300))
         img.save(thumb_path, "JPEG")
+    with thumb_path.open("rb") as fh:
+        upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg", fh)
+
 
     meta = json.loads(META_FILE.read_text())
     meta.append({
@@ -133,35 +153,68 @@ async def protected_upload(
     })
     META_FILE.write_text(json.dumps(meta, indent=2))
 
-    return {"status": "ok", "filename": filename}
+    return {
+        "status": "ok",
+        "filename": filename,
+        "label": label,
+        "timestamp": timestamp,
+        "gcs_path": f"{GCS_UPLOAD_PREFIX}/{filename}",
+        "proxy_url": f"/images/{filename}",
+        "thumb_url": f"/images/{filename}.thumb.jpg",
+        "summary_url": f"/images/{filename}.summary.txt",
+        "summary": result["summary"]
+    }
+from fastapi import Request
+from fastapi.responses import HTMLResponse
+from google.cloud import storage
+from scripts.auth import get_current_user  # Optional if you want auth
 
 @app.get("/photos", response_class=HTMLResponse)
 async def gallery(request: Request, q: str = ""):
     query = q.strip().lower()
     photos = []
 
-    for file in sorted(UPLOAD_DIR.iterdir()):
-        if file.suffix.lower() in [".jpg", ".jpeg", ".png"] and not file.name.endswith(".thumb.jpg"):
-            thumb = file.with_suffix(file.suffix + ".thumb.jpg")
-            summary_file = file.with_suffix(file.suffix + ".summary.txt")
-            tags = []
+    client = storage.Client.from_service_account_json("/app/service-account-key.json")
+    bucket = client.bucket(GCS_BUCKET)
+    blobs = bucket.list_blobs(prefix="upload/")
 
-            if summary_file.exists():
-                summary_text = summary_file.read_text()
-                tags = [line.strip("-• \n").lower() for line in summary_text.splitlines() if line.strip()]
+    # Only keep main images (ignore thumbs and summaries)
+    main_images = [blob for blob in blobs if blob.name.endswith((".jpg", ".jpeg", ".png")) and
+                   not blob.name.endswith(".thumb.jpg") and not blob.name.endswith(".summary.txt")]
 
-            # Filter if a query is set
-            if query and not any(query in tag for tag in tags):
-                continue
+    for blob in main_images:
+        filename = Path(blob.name).name
+        timestamp = blob.updated.isoformat()
+        tags = []
 
-            photos.append({
-                "filename": file.name,
-                "tags": tags,
-                "timestamp": file.stat().st_mtime,
-            })
+        # Try to fetch the summary file
+        summary_name = f"{blob.name}.summary.txt"
+        summary_blob = bucket.blob(summary_name)
+        if summary_blob.exists():
+            try:
+                summary_text = summary_blob.download_as_text()
+                tags = [
+                    line.strip("-• \n").lower()
+                    for line in summary_text.splitlines()
+                    if line.strip()
+                ]
+            except Exception as e:
+                print(f"Error reading summary for {filename}: {e}")
+
+        # Filter by query
+        if query and not any(query in tag for tag in tags):
+            continue
+
+        photos.append({
+            "filename": filename,
+            "tags": tags,
+            "timestamp": timestamp,
+            "proxy_url": f"/images/{filename}",
+            "thumb_url": f"/images/{filename}.thumb.jpg"
+        })
 
     return templates.TemplateResponse("photo_gallery_template.html", {
         "request": request,
-        "photos": photos,
+        "photos": sorted(photos, key=lambda p: p["timestamp"], reverse=True),
         "query": q
     })

@@ -1,6 +1,7 @@
 authlib
 dotenv
 fastapi>=0.100.0
+google-cloud-storage
 itsdangerous
 jinja2
 openai

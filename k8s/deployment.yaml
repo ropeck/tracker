@@ -21,6 +21,9 @@ spec:
           volumeMounts:
             - name: uploads
               mountPath: /data
+            - name: gcp-credentials
+              mountPath: /app/service-account-key.json
+              subPath: service-account-key.json
           envFrom:
             - secretRef:
                name: tracker-secrets
