@@ -58,7 +58,33 @@ The following core system features are live at [https://home.fogcat5.com](https:
 - 🔎 Basic query/search for tags
 - 🧼 Secrets and API keys now injected via K8s secret volume
 - 📁 Auto-organizing project directory (`scripts`, `templates`, `uploads`, etc.)
-  
+
+
+## 🗓️ Daily Update: April 22, 2025
+
+### ✅ What Got Done
+
+- 📦 **Switched image uploads to Google Cloud Storage**
+  - Full-size images, thumbnails, and summaries now land in `fogcat5-home/upload/`
+- 🖼️ **Gallery page now reads from GCS**
+  - `/photos` renders thumbnails and tags directly via GCS proxy route
+- 🚀 **Added FastAPI proxy route to serve GCS files**
+  - `/uploads/{filename}` handles image, thumb, and summary access with streaming
+- 🧠 **Vision summaries stored alongside each image**
+  - Parsed from OpenAI vision API and saved as `.summary.txt`
+- 🛠️ **Improved gallery tag display**
+  - Shows tags as stylized pills with links coming soon
+- 🐳 **Created GitHub Actions CI pipeline**
+  - Builds Docker image on `prod` branch push
+  - Tags: `:latest`, `:v<run_number>`, and `:<short_sha>`
+  - Pushes to Docker Hub and updates GKE deployment
+- ☁️ **Auto-deploy to GKE now working!**
+  - Cluster restarts pod with new image every `prod` commit
+
+### 🍻 Vibe of the Day
+- Dev soundtrack: Brad Mehldau – *"Look for the Silver Lining"*
+- Beers on deck: Little Sumpin’ Sumpin’ → Atomic Torpedo IPA → CI/CD victory lap
+
 ## What's Next
 
 - Queue background tasks to:
