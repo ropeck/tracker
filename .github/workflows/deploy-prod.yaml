@@ -1,4 +1,4 @@
-name: Build and Push Docker Image (prod)
+name: Build, Push, and Deploy (prod)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - prod
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,7 +22,13 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: 🚀 Build and push image to Docker Hub
+      - name: 🏷️ Set image tag variables
+        id: vars
+        run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -30,6 +36,21 @@ jobs:
           tags: |
             fogcat5/home-app:latest
             fogcat5/home-app:v${{ github.run_number }}
-            fogcat5/home-app:${{ github.sha }}
+            fogcat5/home-app:${{ steps.vars.outputs.tag }}
           provenance: false
 
+      - name: ☁️ Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: 🔧 Set up GKE
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location: ${{ secrets.GKE_ZONE }}
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: 📦 Update deployment image
+        run: |
+          kubectl set image deployment/home-app home-app=fogcat5/home-app:${{ steps.vars.outputs.tag }} --namespace=default
