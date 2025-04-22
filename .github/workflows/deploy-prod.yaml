@@ -1,0 +1,35 @@
+name: Build and Push Docker Image (prod)
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 🧱 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: 🚀 Build and push image to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            fogcat5/home-app:latest
+            fogcat5/home-app:v${{ github.run_number }}
+            fogcat5/home-app:${{ github.sha }}
+          provenance: false
+

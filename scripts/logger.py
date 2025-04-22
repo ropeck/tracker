@@ -30,8 +30,9 @@
 # - Search/filter by tags
 # - Clean, readable FastAPI routes
 
-
 import json
+import logging
+import mimetypes
 import os
 import shutil
 from datetime import datetime
@@ -41,12 +42,18 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from google.cloud import storage
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
-from google.cloud import storage
+from starlette.requests import Request
 
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
@@ -54,6 +61,10 @@ from scripts.vision import analyze_image_with_openai
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+)
 templates = Jinja2Templates(directory="scripts/templates")
 
 app = FastAPI()
@@ -78,15 +89,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
+@app.get("/uploads/{path:path}")
+async def gcs_proxy(path: str, request: Request):
+    gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
+    logging.info(f"📦 GCS proxy requested: {gcs_path}")
+
+    try:
+        key_path = "/app/service-account-key.json"
+        if os.path.exists(key_path):
+            client = storage.Client.from_service_account_json(key_path)
+        else:
+            client = storage.Client()  # ADC fallback
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(gcs_path)
+
+        if not blob.exists():
+            logging.warning(f"❌ GCS file not found: {gcs_path}")
+            return JSONResponse(status_code=404, content={"error": "File not found", "path": gcs_path})
+
+        stream = blob.open("rb")
+
+        content_type = blob.content_type
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(path)
+        if not content_type:
+            content_type = "application/octet-stream"  # fallback
+
+        return StreamingResponse(
+            stream,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{path}"'
+            }
+        )
+    except Exception as e:
+        logging.exception(f"🔥 Error serving GCS file: {gcs_path}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal error accessing GCS",
+                "message": str(e),
+                "path": gcs_path
+            }
+        )
 
 def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
     client = storage.Client.from_service_account_json("/app/service-account-key.json")
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     blob.upload_from_file(file_obj, rewind=True)
-    return blob.url
+    return destination_blob_name
+
 
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -167,7 +221,9 @@ async def protected_upload(
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from google.cloud import storage
+
 from scripts.auth import get_current_user  # Optional if you want auth
+
 
 @app.get("/photos", response_class=HTMLResponse)
 async def gallery(request: Request, q: str = ""):
@@ -179,7 +235,7 @@ async def gallery(request: Request, q: str = ""):
     blobs = bucket.list_blobs(prefix="upload/")
 
     # Only keep main images (ignore thumbs and summaries)
-    main_images = [blob for blob in blobs if blob.name.endswith((".jpg", ".jpeg", ".png")) and
+    main_images = [blob for blob in blobs if blob.name.lower().endswith((".jpg", ".jpeg", ".png")) and
                    not blob.name.endswith(".thumb.jpg") and not blob.name.endswith(".summary.txt")]
 
     for blob in main_images:

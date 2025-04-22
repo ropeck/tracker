@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: home-app
-          image: fogcat5/home-app:v1.10
+          image: fogcat5/home-app:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -31,3 +31,6 @@ spec:
         - name: uploads
           persistentVolumeClaim:
             claimName: home-app-pvc
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
