@@ -94,3 +94,41 @@ The following core system features are live at [https://home.fogcat5.com](https:
 - Admin interface for tag cleanup and reprocessing
 - NFC tag sync and label printing
 - More natural language queries
+
+Here's your focused **plan for tomorrow (April 23, 2025)** based on where we left off today:
+
+---
+
+## 🔜 Planned Tasks for April 23
+
+### 🗃️ **SQLite Metadata Integration**
+- [ ] Create database tables (`images`, `tags`, `image_tags`, `users`)
+- [ ] Store upload metadata (filename, timestamp, label, tags) in SQLite on each upload
+- [ ] Refactor `metadata.json` usage to DB-backed queries
+
+### 🔍 **Search & Filtering**
+- [ ] Implement `/photos?q=<tag>` filter using DB-backed lookup
+- [ ] Make tags in the gallery clickable → link to tag-filtered photo view
+- [ ] Add optional search input to `/photos` page
+
+### 🧪 **Local Testing**
+- [ ] Test upload + DB flow locally with SQLite before deploying to GKE
+- [ ] Ensure backward compatibility with previously uploaded GCS images
+
+---
+
+## 🚧 Stretch Goals (Optional)
+- [ ] Display label + notes alongside tags in gallery
+- [ ] Begin wiring up Firestore logic (for future cloud-native metadata)
+- [ ] Add a simple CLI script to query recent uploads by tag or date
+
+---
+
+## 🧘 Dev Environment Tasks (Optional)
+- [ ] Add `notes/2025-04-23.md`
+- [ ] Run `db init` script if SQLite doesn’t exist
+- [ ] Create migration script to backfill tags from `.summary.txt` into DB
+
+---
+
+You’re in a perfect spot to transition from flat storage to a real search-capable tagging system. Want this dropped into tomorrow’s notes file?
