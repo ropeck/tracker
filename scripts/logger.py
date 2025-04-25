@@ -169,27 +169,27 @@ def index():
         </style>
         </head>
         <body>
-
-        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" enctype="multipart/form-data">
         <label for="fileInput" class="upload-button">
             Upload a Photo
             <input type="file" id="fileInput" name="upload" accept="image/*" capture="environment" hidden>
         </label>
-        Label: <input type="text" name="label"><br>
+        Label: <input type="text" name="label" value="from-browser"><br>
         <div id="uploadStatus"></div>
         </form>
 
         <script>
-        const form = document.getElementById('uploadForm');
         const fileInput = document.getElementById('fileInput');
         const status = document.getElementById('uploadStatus');
 
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files[0];
-            if (!file) return;
+            const labelInput = document.querySelector('input[name="label"]');
+            const label = labelInput ? labelInput.value : "";
 
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('upload', file);
+            formData.append('label', label);
 
             status.innerHTML = 'Uploading...';
 
@@ -199,14 +199,11 @@ def index():
                 body: formData
             });
 
-            if (res.ok) {
-                status.innerHTML = 'Upload complete!';
-            } else {
-                status.innerHTML = 'Upload failed.';
-            }
+            const result = await res.json();
+            status.innerHTML = result.status === 'ok' ? 'Upload complete!' : 'Upload failed.';
             } catch (err) {
-            status.innerHTML = 'Error during upload.';
             console.error(err);
+            status.innerHTML = 'Upload error.';
             }
         });
         </script>
@@ -237,6 +234,7 @@ async def protected_upload(
         shutil.copyfileobj(upload.file, buffer)
         with file_path.open("rb") as fh:
             upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/{filename}", fh)
+
 
 
     # Analyze with Vision API

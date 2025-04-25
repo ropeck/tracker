@@ -5,6 +5,10 @@ IMAGE := fogcat5/$(APP_NAME)
 TAG := latest
 DEPLOYMENT := $(APP_NAME)
 NAMESPACE := default
+VENV = venv
+PYTHON = $(VENV)/bin/python
+PIP = $(VENV)/bin/pip
+PYTEST = $(VENV)/bin/pytest
 
 # For pushing to GitHub Container Registry:
 # IMAGE := ghcr.io/ropeck/$(APP_NAME)
@@ -12,6 +16,17 @@ NAMESPACE := default
 .PHONY: all build push deploy logs shell
 
 all: build push deploy
+
+dev:	$(VENV)/bin/activate
+
+$(VENV)/bin/activate:
+	@echo "🔧 Creating virtual environment..."
+	python3 -m venv $(VENV)
+	@echo "⬆️  Upgrading pip..."
+	$(PIP) install --upgrade pip
+	@echo "📦 Installing required packages..."
+	$(PIP) install fastapi python-multipart uvicorn pillow openai jinja2 dotenv
+	$(PIP) install -r requirements.txt
 
 build:
 	docker build -t $(IMAGE):$(TAG) . --load
