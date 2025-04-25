@@ -144,17 +144,74 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return """
-    <html><body>
-    <h2>Upload Item Photo</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="upload"><br>
-        Label: <input type="text" name="label"><br>
-        <input type="submit" value="Upload">
-    </form>
-    <a href="/photos">See All Uploaded Photos</a>
-    </body></html>
+    HTML_FORM = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            .upload-button {
+            display: block;
+            width: 90%;
+            max-width: 320px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: #007bff;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            border-radius: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            cursor: pointer;
+            }
+            .upload-button:active {
+            background-color: #0056b3;
+            }
+        </style>
+        </head>
+        <body>
+        <form id="uploadForm" enctype="multipart/form-data">
+        <label for="fileInput" class="upload-button">
+            Upload a Photo
+            <input type="file" id="fileInput" name="upload" accept="image/*" capture="environment" hidden>
+        </label>
+        Label: <input type="text" name="label" value="from-browser"><br>
+        <div id="uploadStatus"></div>
+        </form>
+
+        <script>
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('uploadStatus');
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            const labelInput = document.querySelector('input[name="label"]');
+            const label = labelInput ? labelInput.value : "";
+
+            const formData = new FormData();
+            formData.append('upload', file);
+            formData.append('label', label);
+
+            status.innerHTML = 'Uploading...';
+
+            try {
+            const res = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await res.json();
+            status.innerHTML = result.status === 'ok' ? 'Upload complete!' : 'Upload failed.';
+            } catch (err) {
+            console.error(err);
+            status.innerHTML = 'Upload error.';
+            }
+        });
+        </script>
+        </body>
+        </html> 
     """
+    return HTMLResponse(content=HTML_FORM)
+
 
 @app.get("/unauthorized", response_class=HTMLResponse)
 async def unauthorized():
@@ -177,6 +234,7 @@ async def protected_upload(
         shutil.copyfileobj(upload.file, buffer)
         with file_path.open("rb") as fh:
             upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/{filename}", fh)
+
 
 
     # Analyze with Vision API
@@ -218,12 +276,6 @@ async def protected_upload(
         "summary_url": f"/images/{filename}.summary.txt",
         "summary": result["summary"]
     }
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from google.cloud import storage
-
-from scripts.auth import get_current_user  # Optional if you want auth
-
 
 @app.get("/photos", response_class=HTMLResponse)
 async def gallery(request: Request, q: str = ""):

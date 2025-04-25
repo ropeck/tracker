@@ -11,4 +11,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8000
-CMD ["uvicorn", "scripts.logger:app", "--proxy-headers", "--forwarded-allow-ips=\"*\"", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "scripts.logger:app", "--proxy-headers", "--forwarded-allow-ips=\"*\"", \
+    "--host", "0.0.0.0", "--port", "8000", "--reload"]
