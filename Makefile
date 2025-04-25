@@ -14,7 +14,10 @@ NAMESPACE := default
 all: build push deploy
 
 build:
-	docker build -t $(IMAGE):$(TAG) .
+	docker build -t $(IMAGE):$(TAG) . --load
+
+run-local: build
+	docker run -it --rm -p 8000:8000 tracker-app
 
 push:
 	docker push $(IMAGE):$(TAG)
