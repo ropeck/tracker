@@ -6,4 +6,6 @@ __pycache__/
 .env
 .DS_Store
 *.sqlite3
-uploads/metadata.json
+venv
+uploads
+service-account-key.json

@@ -28,6 +28,9 @@ $(VENV)/bin/activate:
 	$(PIP) install fastapi python-multipart uvicorn pillow openai jinja2 dotenv
 	$(PIP) install -r requirements.txt
 
+clean:
+	rm -rf $(VENV)
+
 build:
 	docker build -t $(IMAGE):$(TAG) . --load
 
