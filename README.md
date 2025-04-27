@@ -1,8 +1,19 @@
-# Home Inventory & Object Memory System
+# 📸 Tracker App
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Framework-green?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-Private-lightgrey)]()
+
+Simple. Organized. Searchable. Your real-world objects, finally remembered.
+
+
+## Home Inventory & Object Memory System
 
 ![Cross-stitched $HOME](docs/crossstitch.png)
 
-A smart, AI-assisted inventory and object tracking system designed to bring order to physical clutter. Combines NFC tagging, photo metadata, and domain-specific reasoning to support memory, cleanup, travel prep, and donation workflows.
+A fast, AI-assisted inventory and object tracking system for making sense of physical clutter — gear, cables, tools, sentimental objects — by combining photo metadata, NFC tagging, and domain-specific reasoning. Designed to support memory, cleanup, travel prep, and donation workflows.
+
 
 ---
 
@@ -27,7 +38,7 @@ We all accumulate gear, cables, tools, and sentimental objects that eventually b
 
 ## Modules
 
-- `/scripts/logger.py` – Web app, photo upload, search
+- `/scripts/logger.py` – Main FastAPI app (photo upload, queue, gallery search)
 - `/scripts/vision.py` – OpenAI Vision API wrapper
 - `/scripts/auth.py` – Google OAuth2 integration
 - `/templates/` – HTML templates for gallery and layout
@@ -35,6 +46,23 @@ We all accumulate gear, cables, tools, and sentimental objects that eventually b
 - `/data/` – (Reserved) for structured object metadata and tag maps
 - `/docs/` – Planning, vision, usage notes, and changelogs
 
+## 📈 Upload Flow 
+
+
+```mermaid
+flowchart TD
+    A[User Uploads Photo] --> B[FastAPI upload Endpoint]
+    B --> C[Save File to Local Disk and Upload to GCS]
+    C --> D[Add Upload Info to Background Queue]
+    D --> E[Background Worker Task Running]
+    E --> F[Analyze Image with Vision API]
+    E --> G[Create Thumbnail]
+    E --> H[Save Summary and Thumbnail to GCS]
+    F --> I[Update Metadata JSON]
+    G --> I
+    H --> I
+    I --> J[Gallery and Uploaded Photo Display Updated]
+```
 
 ---
 

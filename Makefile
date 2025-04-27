@@ -35,7 +35,7 @@ build:
 	docker build -t $(IMAGE):$(TAG) . --load
 
 run-local: build
-	docker run -it --rm -p 8000:8000 tracker-app
+	docker run -it --rm -p 8000:8000 -e NOLOGIN=1 tracker-app
 
 push:
 	docker push $(IMAGE):$(TAG)
