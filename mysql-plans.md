@@ -4,7 +4,7 @@
 
 ## 1. **Database Schema**
 
-You'll need a tiny but powerful set of tables:
+You'll need a tiny but powerful set of tables:  
 ![alt text](static/home-app-schema-diagram.png)
 
 ```sql
@@ -134,6 +134,52 @@ GROUP BY images.id
 
 ---
 
+## 6. **Persistent Volume Claim (PVC) for SQLite**
+
+We’ll add a **PVC** to keep the SQLite database persistent across pod restarts and upgrades.
+
+**PVC Example:**
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tracker-sqlite-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard-rwo
+```
+
+**Mount it in the Pod Deployment:**
+
+```yaml
+spec:
+  containers:
+  - name: tracker-app
+    volumeMounts:
+    - mountPath: /uploads
+      name: uploads-volume
+  volumes:
+  - name: uploads-volume
+    persistentVolumeClaim:
+      claimName: tracker-sqlite-pvc
+```
+
+**Notes:**
+
+- SQLite database file (`metadata.db`) will live in `/uploads/metadata.db`.
+- We can share this volume with the upload images if needed, or split them if preferred later.
+- If you're using Kubernetes namespaces, make sure PVC and Deployment are in the same namespace.
+
+✅ **Database survives pod restarts**  
+✅ **Keeps uploads + metadata tightly together**
+
+---
+
 # ✨ Timeline
 
 | Step | Estimate |
@@ -141,6 +187,7 @@ GROUP BY images.id
 | Schema + helper file | ~20 minutes |
 | Hook into upload pipeline | ~10 minutes |
 | Update gallery query | ~30 minutes |
+| PVC YAML + volume mount updates | ~15 minutes |
 | Testing local uploads | ~30 minutes |
 | PR and GKE push | ~1 hour total 🚀 |
 
