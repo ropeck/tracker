@@ -160,3 +160,46 @@ Here's your focused **plan for tomorrow (April 23, 2025)** based on where we lef
 ---
 
 You’re in a perfect spot to transition from flat storage to a real search-capable tagging system. Want this dropped into tomorrow’s notes file?
+
+---
+
+## 🗓️ Daily Update: April 27, 2025
+
+### ✅ What Got Done
+
+- 🏗️ **Major Upload and Gallery UX Upgrades**
+  - Added background processing queue (async) for OpenAI Vision tagging.
+  - Instantly shows thumbnail and tag summaries after upload completes.
+  - Improved FastAPI upload endpoint to return full `thumb_url` and `summary_url`.
+- 🎯 **Fixed Form Submission and JavaScript Handling**
+  - Corrected form behavior (`action="javascript:void(0)"`) to avoid unwanted submits.
+  - Refined tag parsing and display into clean, styled UI elements.
+- 🛠️ **Resolved Tricky FastAPI 422 Errors**
+  - Fixed multipart form field handling with consistent field names.
+  - Improved debugging output and fallback behaviors during upload errors.
+- 📦 **Deployed New Version to GKE via GitHub Actions**
+  - Branch → Pull Request → Merge to `main` → Promote to `prod`.
+  - CI/CD automatically built Docker image and rolled out to Kubernetes.
+- 📸 **Upload Flow Fully Working Again**
+  - Upload photo → See thumbnail → See tags → View in `/photos` gallery, all live.
+
+---
+
+### 🍻 Vibe of the Day
+- Dev soundtrack: **Anderson .Paak** – *"Come Down"*  
+- Beer of victory: **Discretion Local Lion West Coast IPA**  
+- ✨ Feeling: "**Professional web developer... but doing it for free.**"
+
+---
+
+## 🔥 What's Next
+
+- 🗃️ **SQLite Metadata Integration**
+  - Store uploads, labels, and tags in a proper database for faster querying.
+- 🔗 **Clickable Tags and Filtered Views**
+  - `/photos?q=<tag>` will show only matching tagged photos.
+- 🧹 **Admin Tag Cleanup Tools**
+  - Build simple interface to edit, clean, or reprocess tags.
+- 📲 **Longer Term**
+  - NFC tag-to-photo mapping.
+  - More natural search prompts ("Show me all adapters").

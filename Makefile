@@ -63,3 +63,5 @@ tag:
 	docker tag $(IMAGE):latest $(IMAGE):$$version; \
 	docker push $(IMAGE):$$version
 
+logs:
+	kubectl logs -l app=home-app -f
