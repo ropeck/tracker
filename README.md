@@ -203,3 +203,4 @@ You’re in a perfect spot to transition from flat storage to a real search-capa
 - 📲 **Longer Term**
   - NFC tag-to-photo mapping.
   - More natural search prompts ("Show me all adapters").
+
