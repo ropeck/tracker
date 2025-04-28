@@ -12,29 +12,39 @@
 # - Photos uploaded via phone or web, stored in a flat /photos dir
 # - Future: tie photos to NFC-tagged zones or storage bins
 #
-# Today's Goals (April 20, 2025):
-# 1. Integrate OpenAI's GPT-4o Vision API to analyze uploaded images
-#    - Accept .jpg/.png files
-#    - Encode to base64 and send to /chat/completions
-#    - Prompt GPT to label inventory items in tech/household context
-#    - Store tags as JSON alongside the image
-# 2. Add basic search/query route to ask:
-#    - “What’s this item?”
-#    - “Where’s the yellow cable?”
-#    - “Show me all books or chargers”
-# 3. (Optional) Display tags below each image in the gallery
+# 📋 Goals You Just Described
+
+# | Feature | Details |
+# |:--------|:--------|
+# | 🛠️ Add queuing | Queue the Vision API/image processing instead of blocking during upload |
+# | 🛠️ Show tags for each photo | Display tags (objects/summary) in the photo gallery view |
+# | 🛠️ Show uploaded photo immediately | After upload, show the uploaded photo + summary without needing a manual refresh |
+
+# ---
+
+# # 🛠 Summary of Upgrades
+
+# | Feature | Status |
+# |:--------|:-------|
+# | ✅ Background queue for image processing | (fast uploads, async backend) |
+# | ✅ Display tags next to each photo | (improved gallery info) |
+# | ✅ Instant upload preview | (better feedback to user) |
+
+# ---
 #
 # Copilot, focus on:
-# - Vision API call function
 # - Post-upload tagging
 # - Search/filter by tags
 # - Clean, readable FastAPI routes
 
+
+import asyncio
 import json
 import logging
 import mimetypes
 import os
 import shutil
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -67,7 +77,41 @@ logging.basicConfig(
 )
 templates = Jinja2Templates(directory="scripts/templates")
 
-app = FastAPI()
+# Global queue
+processing_queue = asyncio.Queue()
+
+# Background task holder (optional, for clean shutdown)
+upload_worker_task = None
+
+
+async def process_uploads():
+    while True:
+        upload_info = await processing_queue.get()
+        await process_image(upload_info)
+        processing_queue.task_done()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global upload_worker_task
+
+    # Startup: Launch background worker
+    upload_worker_task = asyncio.create_task(process_uploads())
+    logging.info("🚀 Upload processing queue started.")
+
+    yield
+
+    # Shutdown: Cancel background worker cleanly (optional now)
+    if upload_worker_task:
+        upload_worker_task.cancel()
+        try:
+            await upload_worker_task
+        except asyncio.CancelledError:
+            logging.info("🛑 Upload processing queue stopped.")
+
+
+app = FastAPI(lifespan=lifespan)
+
 app.add_middleware(SessionMiddleware, secret_key="some-random-secret-you-wont-guess")
 app.include_router(auth_router)
 
@@ -90,6 +134,51 @@ app.add_middleware(
 )
 
 
+async def process_image(upload_info):
+    file_path, filename, label = upload_info
+    logging.info(f"🔧 Processing file: {filename}")
+
+    # Run your analysis, thumbnail creation, GCS uploads here
+    # (Move the analysis and thumb code out of /upload into this)
+
+    try:
+        result = analyze_image_with_openai(str(file_path))
+
+        # Save summary
+        summary_path = UPLOAD_DIR / f"{filename}.summary.txt"
+        with open(summary_path, "w") as summary_file:
+            summary_file.write(result["summary"])
+        with open(summary_path, "rb") as fh:
+            upload_file_to_gcs(
+                GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt", fh
+            )
+
+        # Create thumbnail
+        thumb_path = UPLOAD_DIR / f"{filename}.thumb.jpg"
+        with Image.open(file_path) as img:
+            img.thumbnail((300, 300))
+            img.save(thumb_path, "JPEG")
+        with thumb_path.open("rb") as fh:
+            upload_file_to_gcs(
+                GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg", fh
+            )
+
+        # Update metadata
+        meta = json.loads(META_FILE.read_text())
+        meta.append(
+            {
+                "filename": filename,
+                "summary": result["summary"],
+                "label": label,
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+            }
+        )
+        META_FILE.write_text(json.dumps(meta, indent=2))
+
+    except Exception as e:
+        logging.exception(f"Error processing {filename}: {e}")
+
+
 @app.get("/uploads/{path:path}")
 async def gcs_proxy(path: str, request: Request):
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
@@ -106,7 +195,9 @@ async def gcs_proxy(path: str, request: Request):
 
         if not blob.exists():
             logging.warning(f"❌ GCS file not found: {gcs_path}")
-            return JSONResponse(status_code=404, content={"error": "File not found", "path": gcs_path})
+            return JSONResponse(
+                status_code=404, content={"error": "File not found", "path": gcs_path}
+            )
 
         stream = blob.open("rb")
 
@@ -119,9 +210,7 @@ async def gcs_proxy(path: str, request: Request):
         return StreamingResponse(
             stream,
             media_type=content_type,
-            headers={
-                "Content-Disposition": f'inline; filename="{path}"'
-            }
+            headers={"Content-Disposition": f'inline; filename="{path}"'},
         )
     except Exception as e:
         logging.exception(f"🔥 Error serving GCS file: {gcs_path}")
@@ -130,9 +219,10 @@ async def gcs_proxy(path: str, request: Request):
             content={
                 "error": "Internal error accessing GCS",
                 "message": str(e),
-                "path": gcs_path
-            }
+                "path": gcs_path,
+            },
         )
+
 
 def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
     client = storage.Client.from_service_account_json("/app/service-account-key.json")
@@ -143,127 +233,49 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -
 
 
 @app.get("/", response_class=HTMLResponse)
-def index():
-    HTML_FORM = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-            .upload-button {
-            display: block;
-            width: 90%;
-            max-width: 320px;
-            margin: 2rem auto;
-            padding: 1.5rem;
-            background-color: #007bff;
-            color: white;
-            font-size: 1.5rem;
-            text-align: center;
-            border-radius: 14px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            cursor: pointer;
-            }
-            .upload-button:active {
-            background-color: #0056b3;
-            }
-        </style>
-        </head>
-        <body>
-        <form id="uploadForm" enctype="multipart/form-data">
-        <label for="fileInput" class="upload-button">
-            Upload a Photo
-            <input type="file" id="fileInput" name="upload" accept="image/*" capture="environment" hidden>
-        </label>
-        Label: <input type="text" name="label" value="from-browser"><br>
-        <div id="uploadStatus"></div>
-        </form>
-
-        <script>
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('uploadStatus');
-
-        fileInput.addEventListener('change', async () => {
-            const file = fileInput.files[0];
-            const labelInput = document.querySelector('input[name="label"]');
-            const label = labelInput ? labelInput.value : "";
-
-            const formData = new FormData();
-            formData.append('upload', file);
-            formData.append('label', label);
-
-            status.innerHTML = 'Uploading...';
-
-            try {
-            const res = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await res.json();
-            status.innerHTML = result.status === 'ok' ? 'Upload complete!' : 'Upload failed.';
-            } catch (err) {
-            console.error(err);
-            status.innerHTML = 'Upload error.';
-            }
-        });
-        </script>
-        </body>
-        </html> 
-    """
-    return HTMLResponse(content=HTML_FORM)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/unauthorized", response_class=HTMLResponse)
 async def unauthorized():
     return "<h1>403 Forbidden</h1><p>This app is restricted to the authorized user only.</p>"
 
+
+@app.post("/uploadtest")
+async def uploadtest(request: Request):
+    print("DEBUG: /uploadtest called")
+
+    form = await request.form()
+    print("==== FORM FIELDS ====")
+    for key, value in form.items():
+        print(f"{key} -> {value}")
+
+    return {"status": "ok"}
+
+
 @app.post("/upload")
 async def protected_upload(
     request: Request,
     upload: UploadFile = File(...),
     label: str = Form(""),
-    user: dict = Depends(get_current_user)):
+    user: dict = Depends(get_current_user),
+):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    timestamp = datetime.now().isoformat(timespec='seconds')
+    timestamp = datetime.now().isoformat(timespec="seconds")
     filename = f"{timestamp.replace(':', '-')}_{upload.filename}"
     file_path = UPLOAD_DIR / filename
 
     with file_path.open("wb") as buffer:
         shutil.copyfileobj(upload.file, buffer)
-        with file_path.open("rb") as fh:
-            upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/{filename}", fh)
 
+    with file_path.open("rb") as fh:
+        upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/{filename}", fh)
 
-
-    # Analyze with Vision API
-    result = analyze_image_with_openai(str(file_path))
-
-    # Save tags or summary to a .txt or .json file
-    summary_path = UPLOAD_DIR / f"{filename}.summary.txt"
-    with open(summary_path, "w") as summary_file:
-        summary_file.write(result["summary"])
-    with open(summary_path, "rb") as fh:
-        upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt", fh)
-
-    # Generate thumbnail
-    thumb_path = UPLOAD_DIR / f"{filename}.thumb.jpg"
-    with Image.open(file_path) as img:
-        img.thumbnail((300, 300))
-        img.save(thumb_path, "JPEG")
-    with thumb_path.open("rb") as fh:
-        upload_file_to_gcs(GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg", fh)
-
-
-    meta = json.loads(META_FILE.read_text())
-    meta.append({
-        "filename": filename,
-        "summary": result["summary"],
-        "label": label,
-        "timestamp": timestamp
-    })
-    META_FILE.write_text(json.dumps(meta, indent=2))
+    # 🎯 Instead of analyzing now, add to processing queue
+    await processing_queue.put((file_path, filename, label))
 
     return {
         "status": "ok",
@@ -271,11 +283,11 @@ async def protected_upload(
         "label": label,
         "timestamp": timestamp,
         "gcs_path": f"{GCS_UPLOAD_PREFIX}/{filename}",
-        "proxy_url": f"/images/{filename}",
-        "thumb_url": f"/images/{filename}.thumb.jpg",
-        "summary_url": f"/images/{filename}.summary.txt",
-        "summary": result["summary"]
+        "proxy_url": f"/uploads/{filename}",
+        "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+        "summary_url": f"/uploads/summary/{filename}.summary.txt",
     }
+
 
 @app.get("/photos", response_class=HTMLResponse)
 async def gallery(request: Request, q: str = ""):
@@ -287,8 +299,13 @@ async def gallery(request: Request, q: str = ""):
     blobs = bucket.list_blobs(prefix="upload/")
 
     # Only keep main images (ignore thumbs and summaries)
-    main_images = [blob for blob in blobs if blob.name.lower().endswith((".jpg", ".jpeg", ".png")) and
-                   not blob.name.endswith(".thumb.jpg") and not blob.name.endswith(".summary.txt")]
+    main_images = [
+        blob
+        for blob in blobs
+        if blob.name.lower().endswith((".jpg", ".jpeg", ".png"))
+        and not blob.name.endswith(".thumb.jpg")
+        and not blob.name.endswith(".summary.txt")
+    ]
 
     for blob in main_images:
         filename = Path(blob.name).name
@@ -313,16 +330,21 @@ async def gallery(request: Request, q: str = ""):
         if query and not any(query in tag for tag in tags):
             continue
 
-        photos.append({
-            "filename": filename,
-            "tags": tags,
-            "timestamp": timestamp,
-            "proxy_url": f"/images/{filename}",
-            "thumb_url": f"/images/{filename}.thumb.jpg"
-        })
+        photos.append(
+            {
+                "filename": filename,
+                "tags": tags,
+                "timestamp": timestamp,
+                "proxy_url": f"/images/{filename}",
+                "thumb_url": f"/images/{filename}.thumb.jpg",
+            }
+        )
 
-    return templates.TemplateResponse("photo_gallery_template.html", {
-        "request": request,
-        "photos": sorted(photos, key=lambda p: p["timestamp"], reverse=True),
-        "query": q
-    })
+    return templates.TemplateResponse(
+        "photo_gallery_template.html",
+        {
+            "request": request,
+            "photos": sorted(photos, key=lambda p: p["timestamp"], reverse=True),
+            "query": q,
+        },
+    )
