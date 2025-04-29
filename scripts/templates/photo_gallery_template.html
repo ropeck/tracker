@@ -1,57 +1,22 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Uploaded Photos</title>
-    <style>
-        body {
-            background-color: #1e1e1e;
-            color: #f0f0f0;
-            font-family: sans-serif;
-            max-width: 800px;
-            margin: auto;
-        }
-        h1 {
-            color: #dcdcdc;
-        }
-        .photo-entry {
-            margin-bottom: 40px;
-        }
-        .photo-entry img {
-            max-width: 300px;
-            cursor: pointer;
-            display: block;
-            margin-bottom: 10px;
-        }
-        .tags-list {
-            margin: 0 0 0 20px;
-            padding: 0;
-        }
-        .tags-list li {
-            margin-bottom: 4px;
-        }
-    </style>
+    <title>Photo Gallery</title>
 </head>
 <body>
-    <h1>Uploaded Photos</h1>
-    <form method="get" action="/photos" style="margin-bottom:20px;">
-        <input type="text" name="q" value="{{ query }}" placeholder="Search tags..." style="padding:5px;">
+    <h1>Photo Gallery</h1>
+    <form action="/search" method="get">
+        <input type="text" name="q" placeholder="Search by tag">
         <button type="submit">Search</button>
     </form>
-    {% for photo in photos %}
-    <div class="photo-entry">
-        <a href="/uploads/{{ photo.filename }}" target="_blank">
-            <img src="/uploads/thumb/{{ photo.filename }}.thumb.jpg">            
-        </a>
-        <strong>Tags:</strong>
-        <ul class="tags-list">
-        {% for tag in photo.tags %}
-            <li>{{ tag }}</li>
+    <div>
+        {% for photo in photos %}
+            <div>
+                <img src="{{ photo.thumb_url }}" alt="{{ photo.filename }}">
+                <p>Tags: {{ photo.tags | join(' ') }}</p>
+                <p>Uploaded at: {{ photo.timestamp }}</p>
+            </div>
         {% endfor %}
-        </ul>
-        <div style="font-size: 0.9em; color: #ccc;">{{ photo.timestamp }}</div>
     </div>
-    {% endfor %}
-    <a href="/upload">Upload More</a>
 </body>
 </html>

@@ -256,18 +256,6 @@ async def unauthorized():
     return "<h1>403 Forbidden</h1><p>This app is restricted to the authorized user only.</p>"
 
 
-@app.post("/uploadtest")
-async def uploadtest(request: Request):
-    print("DEBUG: /uploadtest called")
-
-    form = await request.form()
-    print("==== FORM FIELDS ====")
-    for key, value in form.items():
-        print(f"{key} -> {value}")
-
-    return {"status": "ok"}
-
-
 @app.post("/upload")
 async def protected_upload(
     request: Request,
@@ -304,49 +292,67 @@ async def protected_upload(
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def gallery(request: Request, q: str = ""):
-    query = q.strip().lower()
-    photos = []
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        if query:
-            sql = """
-                SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
-                FROM images
-                LEFT JOIN image_tags ON images.id = image_tags.image_id
-                LEFT JOIN tags ON image_tags.tag_id = tags.id
-                WHERE tags.name LIKE ?
-                GROUP BY images.id
+async def view_photos(request: Request):
+    async with aiosqlite.connect("uploads/metadata.db") as db:
+        cursor = await db.execute(
             """
-            rows = await db.execute_fetchall(sql, (f"%{query}%",))
-        else:
-            sql = """
-                SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
-                FROM images
-                LEFT JOIN image_tags ON images.id = image_tags.image_id
-                LEFT JOIN tags ON image_tags.tag_id = tags.id
-                GROUP BY images.id
-            """
-            rows = await db.execute_fetchall(sql)
-
+            SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+            FROM images
+            LEFT JOIN image_tags ON images.id = image_tags.image_id
+            LEFT JOIN tags ON image_tags.tag_id = tags.id
+            GROUP BY images.id
+            ORDER BY images.timestamp DESC
+        """
+        )
+        rows = await cursor.fetchall()
+        photos = []
         for row in rows:
             filename, timestamp, tags_str = row
             tags = tags_str.split(",") if tags_str else []
             photos.append(
                 {
                     "filename": filename,
-                    "tags": tags,
                     "timestamp": timestamp,
+                    "tags": tags,
                     "proxy_url": f"/uploads/{filename}",
                     "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
                 }
             )
-
     return templates.TemplateResponse(
-        "photo_gallery_template.html",
-        {
-            "request": request,
-            "photos": sorted(photos, key=lambda p: p["timestamp"], reverse=True),
-            "query": q,
-        },
+        "photo_gallery_template.html", {"request": request, "photos": photos}
+    )
+
+
+@app.get("/search", response_class=HTMLResponse)
+async def search_photos(request: Request, q: str = ""):
+    query = q.strip().lower()
+    async with aiosqlite.connect("uploads/metadata.db") as db:
+        cursor = await db.execute(
+            """
+            SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+            FROM images
+            LEFT JOIN image_tags ON images.id = image_tags.image_id
+            LEFT JOIN tags ON image_tags.tag_id = tags.id
+            GROUP BY images.id
+            ORDER BY images.timestamp DESC
+        """
+        )
+        rows = await cursor.fetchall()
+        photos = []
+        for row in rows:
+            filename, timestamp, tags_str = row
+            tags = tags_str.split(",") if tags_str else []
+            if query and not any(query in tag.lower() for tag in tags):
+                continue
+            photos.append(
+                {
+                    "filename": filename,
+                    "timestamp": timestamp,
+                    "tags": tags,
+                    "proxy_url": f"/uploads/{filename}",
+                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+                }
+            )
+    return templates.TemplateResponse(
+        "photo_gallery_template.html", {"request": request, "photos": photos}
     )
