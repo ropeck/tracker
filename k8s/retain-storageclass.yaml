@@ -1,0 +1,7 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: retain-storage
+provisioner: kubernetes.io/gce-pd  # Replace with your provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
