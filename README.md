@@ -204,3 +204,17 @@ You’re in a perfect spot to transition from flat storage to a real search-capa
   - NFC tag-to-photo mapping.
   - More natural search prompts ("Show me all adapters").
 
+## 🗓️ Daily Log — April 28, 2025
+
+- **SQLite Integration**
+  - Implemented `scripts/db.py` with helper functions: `init_db()`, `add_image()`, `add_tag()`, and `link_image_tag()`.
+  - Integrated database operations into the upload pipeline, storing image metadata and associated tags.
+
+- **Gallery Enhancements**
+  - Updated `/photos` route to fetch and display images and tags from the SQLite database.
+  - Enabled tag-based filtering in the gallery view.
+
+- **Testing and Validation**
+  - Conducted local testing of image uploads and gallery functionality.
+  - Verified that uploaded images and tags are correctly stored and retrieved from the database.
+  - also verified working on GKE in prod
