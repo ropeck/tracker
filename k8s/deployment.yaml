@@ -20,7 +20,7 @@ spec:
             - containerPort: 8000
           volumeMounts:
             - name: uploads
-              mountPath: /data
+              mountPath: /uploads
             - name: gcp-credentials
               mountPath: /app/service-account-key.json
               subPath: service-account-key.json
