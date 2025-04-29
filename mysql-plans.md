@@ -192,3 +192,122 @@ spec:
 | PR and GKE push | ~1 hour total 🚀 |
 
 ---
+# backup notes
+
+### 📁 Step 1: Add a PersistentVolumeClaim (PVC)
+
+Ensure your Kubernetes deployment includes a PVC to persist the SQLite database. Here's a sample YAML configuration:
+
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tracker-sqlite-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+```
+
+
+Mount this PVC to the appropriate path in your pod where the SQLite database resides.
+
+---
+
+### 🔄 Step 2: Implement Daily Backups to GCS
+
+To back up your SQLite database daily to GCS, you can use a Kubernetes CronJob. Here's how:
+
+1. **Create a Backup Script**: Write a script that uses the `.backup` command to safely back up the SQLite database. ([How to backup sqlite database? - Stack Overflow](https://stackoverflow.com/questions/25675314/how-to-backup-sqlite-database?utm_source=chatgpt.com))
+
+   ```bash
+   #!/bin/bash
+   TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+   BACKUP_FILE="metadata_$TIMESTAMP.db"
+   sqlite3 /uploads/metadata.db ".backup '/backups/$BACKUP_FILE'"
+   gsutil cp /backups/$BACKUP_FILE gs://your-gcs-bucket/sqlite-backups/
+   rm /backups/$BACKUP_FILE
+   ```
+
+
+   Ensure that the script has execute permissions and that `gsutil` is authenticated to access your GCS bucket.
+
+2. **Create a Kubernetes CronJob**: Set up a CronJob that runs the backup script daily. ([Cron-based backup - Litestream](https://litestream.io/alternatives/cron/?utm_source=chatgpt.com))
+
+   ```yaml
+   apiVersion: batch/v1
+   kind: CronJob
+   metadata:
+     name: sqlite-backup
+   spec:
+     schedule: "0 2 * * *"  # Runs daily at 2 AM
+     jobTemplate:
+       spec:
+         template:
+           spec:
+             containers:
+             - name: backup
+               image: google/cloud-sdk:latest
+               volumeMounts:
+               - name: uploads
+                 mountPath: /uploads
+               - name: backups
+                 mountPath: /backups
+               command: ["/bin/bash", "-c"]
+               args:
+               - |
+                 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+                 BACKUP_FILE="metadata_$TIMESTAMP.db"
+                 sqlite3 /uploads/metadata.db ".backup '/backups/$BACKUP_FILE'"
+                 gsutil cp /backups/$BACKUP_FILE gs://your-gcs-bucket/sqlite-backups/
+                 rm /backups/$BACKUP_FILE
+             restartPolicy: OnFailure
+             volumes:
+             - name: uploads
+               persistentVolumeClaim:
+                 claimName: tracker-sqlite-pvc
+             - name: backups
+               emptyDir: {}
+   ```
+
+
+   Replace `your-gcs-bucket` with the name of your GCS bucket.
+
+---
+
+### 🔄 Step 3: Restore from GCS if Local File is Missing or Empty
+
+Modify your application startup logic to check if the local SQLite database file exists and is not empty. If it's missing or empty, download the latest backup from GCS.
+
+
+```python
+import os
+import subprocess
+from google.cloud import storage
+
+DB_PATH = "/uploads/metadata.db"
+GCS_BUCKET = "your-gcs-bucket"
+GCS_BACKUP_PREFIX = "sqlite-backups/"
+
+def restore_db_from_gcs():
+    client = storage.Client()
+    bucket = client.bucket(GCS_BUCKET)
+    blobs = list(bucket.list_blobs(prefix=GCS_BACKUP_PREFIX))
+    if not blobs:
+        print("No backups found in GCS.")
+        return
+    latest_blob = max(blobs, key=lambda b: b.updated)
+    latest_blob.download_to_filename(DB_PATH)
+    print(f"Restored database from {latest_blob.name}")
+
+if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+    restore_db_from_gcs()
+```
+
+
+Ensure that your application has the necessary permissions to access GCS and that the `google-cloud-storage` Python package is installed.
+ 
