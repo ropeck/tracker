@@ -3,3 +3,4 @@ resources:
   - service.yaml
   - ingress.yaml
   - pvc.yaml
+  - retain-storageclass.yaml
