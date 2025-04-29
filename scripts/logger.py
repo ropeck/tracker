@@ -49,6 +49,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
+import aiosqlite
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +68,7 @@ from starlette.requests import Request
 
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
+from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
 from scripts.vision import analyze_image_with_openai
 
 load_dotenv()
@@ -98,6 +100,10 @@ async def lifespan(app: FastAPI):
     # Startup: Launch background worker
     upload_worker_task = asyncio.create_task(process_uploads())
     logging.info("🚀 Upload processing queue started.")
+
+    # ⬇️ Initialize database on startup
+    logging.info("Initialized sqlite database.")
+    await init_db()
 
     yield
 
@@ -162,6 +168,14 @@ async def process_image(upload_info):
             upload_file_to_gcs(
                 GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg", fh
             )
+
+        # After uploading thumb/summary
+        await add_image(filename, label, datetime.now().isoformat(timespec="seconds"))
+        for tag in result["summary"].splitlines():
+            clean_tag = tag.strip("-• \n").lower()
+            if clean_tag:
+                await add_tag(clean_tag)
+                await link_image_tag(filename, clean_tag)
 
         # Update metadata
         meta = json.loads(META_FILE.read_text())
@@ -294,51 +308,39 @@ async def gallery(request: Request, q: str = ""):
     query = q.strip().lower()
     photos = []
 
-    client = storage.Client.from_service_account_json("/app/service-account-key.json")
-    bucket = client.bucket(GCS_BUCKET)
-    blobs = bucket.list_blobs(prefix="upload/")
+    async with aiosqlite.connect(DB_PATH) as db:
+        if query:
+            sql = """
+                SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+                FROM images
+                LEFT JOIN image_tags ON images.id = image_tags.image_id
+                LEFT JOIN tags ON image_tags.tag_id = tags.id
+                WHERE tags.name LIKE ?
+                GROUP BY images.id
+            """
+            rows = await db.execute_fetchall(sql, (f"%{query}%",))
+        else:
+            sql = """
+                SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+                FROM images
+                LEFT JOIN image_tags ON images.id = image_tags.image_id
+                LEFT JOIN tags ON image_tags.tag_id = tags.id
+                GROUP BY images.id
+            """
+            rows = await db.execute_fetchall(sql)
 
-    # Only keep main images (ignore thumbs and summaries)
-    main_images = [
-        blob
-        for blob in blobs
-        if blob.name.lower().endswith((".jpg", ".jpeg", ".png"))
-        and not blob.name.endswith(".thumb.jpg")
-        and not blob.name.endswith(".summary.txt")
-    ]
-
-    for blob in main_images:
-        filename = Path(blob.name).name
-        timestamp = blob.updated.isoformat()
-        tags = []
-
-        # Try to fetch the summary file
-        summary_name = f"{blob.name}.summary.txt"
-        summary_blob = bucket.blob(summary_name)
-        if summary_blob.exists():
-            try:
-                summary_text = summary_blob.download_as_text()
-                tags = [
-                    line.strip("-• \n").lower()
-                    for line in summary_text.splitlines()
-                    if line.strip()
-                ]
-            except Exception as e:
-                print(f"Error reading summary for {filename}: {e}")
-
-        # Filter by query
-        if query and not any(query in tag for tag in tags):
-            continue
-
-        photos.append(
-            {
-                "filename": filename,
-                "tags": tags,
-                "timestamp": timestamp,
-                "proxy_url": f"/images/{filename}",
-                "thumb_url": f"/images/{filename}.thumb.jpg",
-            }
-        )
+        for row in rows:
+            filename, timestamp, tags_str = row
+            tags = tags_str.split(",") if tags_str else []
+            photos.append(
+                {
+                    "filename": filename,
+                    "tags": tags,
+                    "timestamp": timestamp,
+                    "proxy_url": f"/uploads/{filename}",
+                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+                }
+            )
 
     return templates.TemplateResponse(
         "photo_gallery_template.html",

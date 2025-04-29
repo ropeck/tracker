@@ -4,6 +4,8 @@ FROM python:3.11-slim
 RUN ln -sf /usr/local/bin/python /usr/bin/python3 && \
     ln -sf /usr/local/bin/pip /usr/bin/pip3
 
+RUN apt update &&  apt install -y sqlite3
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT UNIQUE,
+    label TEXT,
+    timestamp TEXT
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS image_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_id INTEGER,
+    tag_id INTEGER,
+    FOREIGN KEY(image_id) REFERENCES images(id),
+    FOREIGN KEY(tag_id) REFERENCES tags(id)
+);

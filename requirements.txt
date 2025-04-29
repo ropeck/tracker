@@ -1,3 +1,4 @@
+aiosqlite
 authlib
 dotenv
 fastapi>=0.100.0
