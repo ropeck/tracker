@@ -70,7 +70,7 @@ from starlette.requests import Request
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
-from scripts.vision import analyze_image_with_openai
+from scripts.vision import analyze_image_with_openai, call_openai_chat
 
 load_dotenv()
 
@@ -321,6 +321,31 @@ async def protected_upload(
     }
 
 
+async def get_tags_from_prompt(prompt: str, all_tags: list[str]) -> list[str]:
+    tag_str = ", ".join(sorted(set(all_tags)))
+    system_prompt = f"""
+You are a helpful assistant for organizing home inventory items.
+
+The user will ask a question like "Show photos with power cables" or "Where is the audio gear?"
+
+Given their query, return the most relevant tags from this list:
+{tag_str}
+
+Reply with a JSON array of tag names. For example:
+["usb", "power", "audio"]
+"""
+    response = await call_openai_chat(prompt, system_prompt=system_prompt)
+
+    try:
+        # Safely evaluate returned JSON array
+        tags = json.loads(response)
+        if isinstance(tags, list):
+            return [clean_tag_name(tag) for tag in tags if isinstance(tag, str)]
+    except Exception as e:
+        logging.warning(f"AI response parsing failed: {e} -- raw: {response}")
+    return []
+
+
 @app.get("/photos", response_class=HTMLResponse)
 async def view_photos(request: Request):
     async with aiosqlite.connect("uploads/metadata.db") as db:
@@ -416,9 +441,15 @@ async def search_by_prompt(request: Request):
     form = await request.form()
     prompt = form.get("prompt", "").strip()
 
-    # TODO: Send to OpenAI and match tags (placeholder logic for now)
-    matched_tags = ["audio", "usb", "camera"]  # mock response
+    # Get all tags from DB
+    async with aiosqlite.connect("uploads/metadata.db") as db:
+        cursor = await db.execute("SELECT DISTINCT name FROM tags")
+        tag_rows = await cursor.fetchall()
+        all_tags = [clean_tag_name(row[0]) for row in tag_rows]
 
+    matched_tags = await get_tags_from_prompt(prompt, all_tags)
+
+    # Fetch photos matching the tags
     async with aiosqlite.connect("uploads/metadata.db") as db:
         cursor = await db.execute(
             """
@@ -435,7 +466,8 @@ async def search_by_prompt(request: Request):
         for row in rows:
             filename, timestamp, tags_str = row
             tags = tags_str.split(",") if tags_str else []
-            if not any(tag in matched_tags for tag in tags):
+            normalized_tags = [clean_tag_name(t) for t in tags]
+            if not any(tag in matched_tags for tag in normalized_tags):
                 continue
             photos.append(
                 {
@@ -449,5 +481,10 @@ async def search_by_prompt(request: Request):
 
     return templates.TemplateResponse(
         "search.html",
-        {"request": request, "photos": photos, "top_tags": matched_tags, "q": prompt},
+        {
+            "request": request,
+            "photos": photos,
+            "top_tags": matched_tags,
+            "q": prompt,
+        },
     )
