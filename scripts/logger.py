@@ -37,7 +37,6 @@
 # - Search/filter by tags
 # - Clean, readable FastAPI routes
 
-
 import asyncio
 import json
 import logging
@@ -70,6 +69,8 @@ from starlette.requests import Request
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
+from scripts.rebuild import rebuild_db_from_gcs
+from scripts.util import clean_tag_name
 from scripts.vision import analyze_image_with_openai, call_openai_chat
 
 load_dotenv()
@@ -105,6 +106,7 @@ async def lifespan(app: FastAPI):
     # ⬇️ Initialize database on startup
     logging.info("Initialized sqlite database.")
     await init_db()
+    await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
 
     yield
 
@@ -163,16 +165,6 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
 
 
-def clean_tag_name(tag: str) -> str:
-    # Lowercase, strip spaces, remove quotes, punctuation, etc.
-    tag = tag.strip().lower()
-    tag = re.sub(r"[\"',.:;{}\[\]()`]", "", tag)  # remove common punctuation
-    tag = re.sub(r"\s+", " ", tag)  # normalize whitespace
-    tag = re.sub(r"\s+$", "", tag)  # remove trailing whitespace
-    tag = tag.strip()
-    return tag
-
-
 async def process_image(upload_info):
     file_path, filename, label = upload_info
     logging.info(f"🔧 Processing file: {filename}")
@@ -224,6 +216,15 @@ async def process_image(upload_info):
 
     except Exception as e:
         logging.exception(f"Error processing {filename}: {e}")
+
+
+@app.get("/rebuild", response_class=HTMLResponse)
+async def manual_rebuild(request: Request, user: dict = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
+    return templates.TemplateResponse("rebuild.html", {"request": request})
 
 
 @app.get("/uploads/{path:path}")

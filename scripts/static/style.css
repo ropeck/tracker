@@ -81,3 +81,30 @@ img {
     margin-right: 1rem;
     margin-bottom: 0.5rem;
 }
+
+/* Mobile tweaks */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+
+    input[type="text"] {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .result {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    img {
+        max-width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .tag {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+    }
+}
