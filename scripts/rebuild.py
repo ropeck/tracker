@@ -2,14 +2,19 @@ import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 from google.cloud import storage
 
-from scripts.db import add_image, add_tag, link_image_tag
+from scripts.db import DB_PATH, add_image, add_tag, link_image_tag
 from scripts.util import clean_tag_name
 
 
 async def rebuild_db_from_gcs(bucket_name: str, prefix: str):
+    if Path(DB_PATH).exists():
+        logging.info("📦 DB already exists, skipping rebuild from GCS.")
+        return
+
     try:
         client = storage.Client()
         bucket = client.bucket(bucket_name)
