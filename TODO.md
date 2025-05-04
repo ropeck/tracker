@@ -16,7 +16,7 @@
 ## 🟡 In Progress
 - [ ] Clean up / tighten Docker image (remove venv, static files)
 - [ ] Auto-generate tags for older images (backfill)
-- [ ] Improve result display styling (no raw JSON, just tags)
+- [x] Improve result display styling (no raw JSON, just tags)
 - [ ] Add Makefile or helper scripts for build & deploy
 
 ## ⚡️ Next Priorities
@@ -36,4 +36,30 @@
   - Include project purpose, architecture, screenshots, pricing info
   - Add contributor guidelines if open-sourced
 
-_Last updated: 2025-04-21_
+
+Last update: 2025-05-03
+
+### ⭐ UI & Tag Interaction
+- [ ] Add “⭐ Favorite” marker for photos (toggle per user or system-wide)
+- [ ] Allow user to:
+  - [ ] Add new tags to photos
+  - [ ] Remove incorrect or noisy tags
+  - [ ] Edit tag names (with validation)
+- [ ] Render tags on photo results as pill-style labels with rounded background
+  - [ ] Make each tag clickable → filters search by that tag
+
+### 📊 Tag Explorer
+- [ ] Show count of photos per tag in the **Top Tags** section
+- [ ] Add a scrollable, sortable **Tag Index** page:
+  - [ ] Sort by name or photo count
+  - [ ] Paginate the list for usability (50–100 tags per page)
+  - [ ] Option to filter by prefix or substring
+
+### 🔁 General Enhancements
+- [ ] Add `favorite` field to DB schema and photo model
+- [ ] Create `/favorites` route to view starred images
+- [ ] Add audit log for manual tag edits (optional, but useful for undo/debug)
+
+---
+
+Lazlo and the rest of your home inventory deserve clean, searchable metadata. This list will guide us in polishing the app into something genuinely useful and enjoyable to use.

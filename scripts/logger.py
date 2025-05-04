@@ -160,6 +160,9 @@ app.add_middleware(
 )
 
 
+app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
+
+
 def clean_tag_name(tag: str) -> str:
     # Lowercase, strip spaces, remove quotes, punctuation, etc.
     tag = tag.strip().lower()

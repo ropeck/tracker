@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Search Photos</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <h1>🔍 Search Your Photo Tags</h1>
@@ -12,11 +13,12 @@
     </form>
 
     <h2>Top Tags</h2>
-    <ul>
+    <div class="top-tags">
         {% for tag in top_tags %}
-            <li><a href="/search?q={{ tag }}">{{ tag }}</a></li>
+        <a href="/search?q={{ tag }}" class="tag">{{ tag }}</a>
         {% endfor %}
-    </ul>
+    </div>
+
 
     <h2>Ask a Question</h2>
     <form method="post" action="/search/query">
@@ -30,7 +32,11 @@
         {% for photo in photos %}
             <li>
                 <img src="{{ photo.thumb_url }}" alt="thumb" width="150">
-                <p>Tags: {{ photo.tags | join(", ") }}</p>
+                <div>
+                    {% for tag in photo.tags %}
+                    <a href="/search?q={{ tag }}" class="tag">{{ tag }}</a>
+                    {% endfor %}
+                </div>
             </li>
         {% endfor %}
         </ul>

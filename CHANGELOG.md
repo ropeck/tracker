@@ -47,3 +47,26 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 ### Changed
 - Deployment process updated to use `fogcat5/home-app:v<run>` image tags
 - Refactored proxy route to support streaming any path under `upload/`, including `thumb/` and `summary/`
+## 📅 2025-05-03 – AI Tag Search Integration & Closet Cleanup
+
+### ✅ Tracker App Progress
+
+- Added `/search` page with:
+  - Top 10 most-used tags (excluding junk via blocklist)
+  - Clickable tag-based filtering of uploaded photos
+  - Free-form search box for AI-powered tag matching
+- Implemented `call_openai_chat()` using `openai>=1.0` with `AsyncOpenAI`
+- Added `get_tags_from_prompt()` helper to extract relevant tags from natural language
+- Cleaned tags before saving:
+  - Normalized case
+  - Stripped punctuation
+  - Removed extra whitespace
+- Fixed display of tags by removing quotes, commas, and other junk
+- Verified full search feature locally
+
+### 🔁 Next Steps
+- Push to `prod` branch
+- Deploy updated version to GKE
+- Confirm OpenAI API key is set in cluster env
+
+
