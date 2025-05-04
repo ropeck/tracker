@@ -63,3 +63,58 @@ Last update: 2025-05-03
 ---
 
 Lazlo and the rest of your home inventory deserve clean, searchable metadata. This list will guide us in polishing the app into something genuinely useful and enjoyable to use.
+# Tracker App TODO
+
+This document outlines the planned enhancements and feature backlog for the Tracker App. The goal is to improve photo tagging, browsing, search, and overall usability.
+
+---
+
+## 1. Tagging Enhancements
+- [ ] Add ability to mark photos as "favorite"
+- [ ] UI support to add, edit, and delete tags per photo
+- [ ] Display tag usage counts in the Top 10 list
+- [ ] Add a scrollable list of all tags, sortable by name or count
+
+---
+
+## 2. Search and Display
+- [ ] Improve tag display in search results
+- [ ] Show additional metadata (timestamp, upload source)
+- [ ] Implement pagination for gallery/search views
+- [ ] Add sort options: by date, tag count, favorites, etc.
+
+---
+
+## 3. Upload & Processing
+- [ ] Implement async queue for image processing (Vision API)
+- [ ] Add support for drag-and-drop and multiple file uploads
+- [ ] (Optional) Resize images client-side before upload
+- [ ] Suggest tags after upload based on Vision API results
+
+---
+
+## 4. Backend / Admin Features
+- [ ] Add bulk tagging tools (e.g., tag all photos from a time range)
+- [ ] Allow photo deletion from UI
+- [ ] Build admin page for upload and tag management
+- [ ] Export tag usage and metadata as CSV or JSON
+
+---
+
+## 5. Styling and UX
+- [ ] Add loading placeholders or blurred thumbnails
+- [ ] Smooth CSS transitions for gallery items
+- [ ] Add dark mode toggle
+- [ ] Improve mobile responsiveness
+
+---
+
+## 6. Future Vision Features
+- [ ] NFC tag support to link zones/bins to photos
+- [ ] Track object presence across multiple images
+- [ ] AI-powered clustering or duplicate detection
+- [ ] Calendar-based navigation (e.g., view a location over time)
+
+---
+
+> Last updated: May 3, 2025
