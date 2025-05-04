@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Photos</title>
+</head>
+<body>
+    <h1>🔍 Search Your Photo Tags</h1>
+
+    <form method="get" action="/search">
+        <input type="text" name="q" placeholder="Search tags..." value="{{ q or '' }}">
+        <button type="submit">Search</button>
+    </form>
+
+    <h2>Top Tags</h2>
+    <ul>
+        {% for tag in top_tags %}
+            <li><a href="/search?q={{ tag }}">{{ tag }}</a></li>
+        {% endfor %}
+    </ul>
+
+    <h2>Ask a Question</h2>
+    <form method="post" action="/search/query">
+        <input type="text" name="prompt" placeholder="e.g. Show photos with audio gear">
+        <button type="submit">Ask</button>
+    </form>
+
+    {% if photos %}
+        <h2>Results</h2>
+        <ul>
+        {% for photo in photos %}
+            <li>
+                <img src="{{ photo.thumb_url }}" alt="thumb" width="150">
+                <p>Tags: {{ photo.tags | join(", ") }}</p>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>

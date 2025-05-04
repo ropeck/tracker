@@ -43,6 +43,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -131,6 +132,25 @@ if not META_FILE.exists():
 GCS_BUCKET = "fogcat5-home"
 GCS_UPLOAD_PREFIX = "upload"
 
+# tags to ignore in the top 10 list
+BLOCKED_TAGS = {
+    "objects",
+    "elements",
+    "quantity",
+    "1",
+    "true",
+    "false",
+    "yes",
+    "no",
+    "null",
+    "none",
+    "json",
+    "objects",
+    "elements",
+    "quantity 1",
+}
+
+
 # Allow phone testing
 app.add_middleware(
     CORSMiddleware,
@@ -138,6 +158,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def clean_tag_name(tag: str) -> str:
+    # Lowercase, strip spaces, remove quotes, punctuation, etc.
+    tag = tag.strip().lower()
+    tag = re.sub(r"[\"',.:;{}\[\]()`]", "", tag)  # remove common punctuation
+    tag = re.sub(r"\s+", " ", tag)  # normalize whitespace
+    tag = re.sub(r"\s+$", "", tag)  # remove trailing whitespace
+    tag = tag.strip()
+    return tag
 
 
 async def process_image(upload_info):
@@ -172,7 +202,7 @@ async def process_image(upload_info):
         # After uploading thumb/summary
         await add_image(filename, label, datetime.now().isoformat(timespec="seconds"))
         for tag in result["summary"].splitlines():
-            clean_tag = tag.strip("-• \n").lower()
+            clean_tag = clean_tag_name(tag)
             if clean_tag:
                 await add_tag(clean_tag)
                 await link_image_tag(filename, clean_tag)
@@ -327,6 +357,28 @@ async def view_photos(request: Request):
 async def search_photos(request: Request, q: str = ""):
     query = q.strip().lower()
     async with aiosqlite.connect("uploads/metadata.db") as db:
+        # Get top 10 tags
+        tag_cursor = await db.execute(
+            """
+            SELECT tags.name, COUNT(image_tags.tag_id) as usage_count
+            FROM tags
+            JOIN image_tags ON tags.id = image_tags.tag_id
+            GROUP BY tags.name
+            ORDER BY usage_count DESC
+            LIMIT 50
+        """
+        )
+        tag_rows = await tag_cursor.fetchall()
+        top_tags = []
+
+        for row in tag_rows:
+            clean_tag = clean_tag_name(row[0])
+            if clean_tag and clean_tag not in BLOCKED_TAGS:
+                top_tags.append(clean_tag)
+            if len(top_tags) >= 10:
+                break
+
+        # Get matching photos
         cursor = await db.execute(
             """
             SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
@@ -335,7 +387,7 @@ async def search_photos(request: Request, q: str = ""):
             LEFT JOIN tags ON image_tags.tag_id = tags.id
             GROUP BY images.id
             ORDER BY images.timestamp DESC
-        """
+            """
         )
         rows = await cursor.fetchall()
         photos = []
@@ -354,5 +406,48 @@ async def search_photos(request: Request, q: str = ""):
                 }
             )
     return templates.TemplateResponse(
-        "photo_gallery_template.html", {"request": request, "photos": photos}
+        "search.html",
+        {"request": request, "photos": photos, "top_tags": top_tags, "q": q},
+    )
+
+
+@app.post("/search/query", response_class=HTMLResponse)
+async def search_by_prompt(request: Request):
+    form = await request.form()
+    prompt = form.get("prompt", "").strip()
+
+    # TODO: Send to OpenAI and match tags (placeholder logic for now)
+    matched_tags = ["audio", "usb", "camera"]  # mock response
+
+    async with aiosqlite.connect("uploads/metadata.db") as db:
+        cursor = await db.execute(
+            """
+            SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+            FROM images
+            LEFT JOIN image_tags ON images.id = image_tags.image_id
+            LEFT JOIN tags ON image_tags.tag_id = tags.id
+            GROUP BY images.id
+            ORDER BY images.timestamp DESC
+            """
+        )
+        rows = await cursor.fetchall()
+        photos = []
+        for row in rows:
+            filename, timestamp, tags_str = row
+            tags = tags_str.split(",") if tags_str else []
+            if not any(tag in matched_tags for tag in tags):
+                continue
+            photos.append(
+                {
+                    "filename": filename,
+                    "timestamp": timestamp,
+                    "tags": tags,
+                    "proxy_url": f"/uploads/{filename}",
+                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+                }
+            )
+
+    return templates.TemplateResponse(
+        "search.html",
+        {"request": request, "photos": photos, "top_tags": matched_tags, "q": prompt},
     )
