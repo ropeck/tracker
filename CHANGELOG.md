@@ -70,3 +70,30 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 - Confirm OpenAI API key is set in cluster env
 
 
+Great — here’s a clean markdown summary for your `CHANGELOG.md` or daily project note:
+
+---
+
+## ✅ `2025-05-04` – Search & Tag UX Upgrade
+
+### 🎨 UI / UX Improvements
+- Added responsive CSS with mobile support and dark styling
+- Applied pill-style `.tag` labels to photo results and top tags
+- Top tags converted from list to inline tag display
+- Favicon and custom page title added
+- Enabled proper mobile scaling with `<meta name="viewport">`
+
+### 🔎 Search Features
+- AI-powered free-form text search via OpenAI API (`/search/query`)
+- Tag-based search and filtering with clickable tags
+- Cleaned tag names using shared `clean_tag_name()` utility
+- Blocklisted noise tags from top results
+
+### 🧠 Backend Enhancements
+- Factored `clean_tag_name()` into `scripts/util.py`
+- Rebuild route added at `/rebuild` (auth-protected) to restore DB from GCS `summary.txt`
+- GCS summary-based DB rebuild also runs on app startup
+
+### 🛡️ Security
+- `/rebuild` route now checks for authenticated user
+- Avoids accidental triggering by crawlers or unauthenticated users
