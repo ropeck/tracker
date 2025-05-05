@@ -97,3 +97,32 @@ Great — here’s a clean markdown summary for your `CHANGELOG.md` or daily pro
 ### 🛡️ Security
 - `/rebuild` route now checks for authenticated user
 - Avoids accidental triggering by crawlers or unauthenticated users
+
+
+Absolutely — here’s your updated `CHANGELOG.md` entry for **`v0.6.2`**, reflecting today’s production deployment, feature completion, and workspace progress:
+
+## \[v0.6.2] – 2025-05-04 – GCS Rebuild Live in Prod ✅
+
+### 🔁 GCS Rebuild System
+
+* Implemented `should_rebuild_db()` logic with robust handling of `force` triggers
+* Added `FORCE_REBUILD` environment variable support for startup-time rebuilds
+* Updated `/rebuild` route to support `?force=true` query param
+* Clean logs show rebuild decisions, GCS summary parsing, and per-image progress
+* Fully tested in local dev and now deployed and verified in **production (GKE)**
+
+### 🛠️ DevOps & K8s Improvements
+
+* Confirmed pod label `app=home-app` works for simplified log access:
+
+  ```bash
+  kubectl logs -l app=home-app -f
+  ```
+* Clean startup behavior validated both with and without rebuild triggers
+* Pod logs confirm accurate summary syncing and no unexpected exceptions
+
+### 🍻 Status
+
+* Version **v0.6.2** deployed to `prod`
+* System stable, responsive, and fully functional
+* Celebrated with a Moon Time Hazy IPA from Morgan Territory Brewing
