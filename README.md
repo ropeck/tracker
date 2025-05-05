@@ -218,3 +218,12 @@ You’re in a perfect spot to transition from flat storage to a real search-capa
   - Conducted local testing of image uploads and gallery functionality.
   - Verified that uploaded images and tags are correctly stored and retrieved from the database.
   - also verified working on GKE in prod
+
+## 📅 Sunday, May 4, 2025
+
+### 🧪 Testing & Development
+
+* **GCS Rebuild**: Implemented a `should_rebuild_db` method to determine when to rebuild the database from GCS. Added support for a `force` argument via environment variable and URL parameter.
+* **Uvicorn Configuration**: Opted to use environment variables for passing arguments to Uvicorn. Set `FORCE_REBUILD` in the Kubernetes YAML to trigger a rebuild.
+* **Code Enhancements**: Refactored `rebuild_db_from_gcs` for improved readability and added comprehensive docstrings. Ensured that comments wrap at 80 columns in VS Code for consistency.
+* **Testing**: Conducted local testing to confirm that the rebuild logic works as expected. Verified that the database rebuilds when `FORCE_REBUILD` is set and skips when it's not.
