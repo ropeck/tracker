@@ -69,11 +69,6 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 - Deploy updated version to GKE
 - Confirm OpenAI API key is set in cluster env
 
-
-Great — here’s a clean markdown summary for your `CHANGELOG.md` or daily project note:
-
----
-
 ## ✅ `2025-05-04` – Search & Tag UX Upgrade
 
 ### 🎨 UI / UX Improvements
@@ -97,9 +92,6 @@ Great — here’s a clean markdown summary for your `CHANGELOG.md` or daily pro
 ### 🛡️ Security
 - `/rebuild` route now checks for authenticated user
 - Avoids accidental triggering by crawlers or unauthenticated users
-
-
-Absolutely — here’s your updated `CHANGELOG.md` entry for **`v0.6.2`**, reflecting today’s production deployment, feature completion, and workspace progress:
 
 ## \[v0.6.2] – 2025-05-04 – GCS Rebuild Live in Prod ✅
 
