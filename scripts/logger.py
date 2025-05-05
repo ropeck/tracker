@@ -105,9 +105,9 @@ async def lifespan(app: FastAPI):
 
     # ⬇️ Initialize database on startup
     logging.info("Initialized sqlite database.")
-    await init_db()
-
     await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
+
+    await init_db()
 
     yield
 

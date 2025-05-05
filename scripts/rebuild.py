@@ -6,7 +6,7 @@ from pathlib import Path
 
 from google.cloud import storage
 
-from scripts.db import DB_PATH, add_image, add_tag, link_image_tag
+from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
 from scripts.util import clean_tag_name
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,10 @@ async def rebuild_db_from_gcs(
         return
 
     logger.info("🔁 Starting rebuild from GCS...")
+
+    if not os.path.exists(DB_PATH):
+        logging.info(f"Db file does not exist, creating: {DB_PATH}")
+        await init_db()
 
     try:
         client = storage.Client()
