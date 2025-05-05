@@ -51,7 +51,7 @@ from urllib.parse import urlencode
 
 import aiosqlite
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     HTMLResponse,
@@ -106,6 +106,7 @@ async def lifespan(app: FastAPI):
     # ⬇️ Initialize database on startup
     logging.info("Initialized sqlite database.")
     await init_db()
+
     await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
 
     yield
@@ -219,11 +220,19 @@ async def process_image(upload_info):
 
 
 @app.get("/rebuild", response_class=HTMLResponse)
-async def manual_rebuild(request: Request, user: dict = Depends(get_current_user)):
+async def manual_rebuild(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    force: str = Query(default="false"),
+):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
+    force_flag = force.strip().lower() not in ("", "0", "false", "no", "off")
+
+    await rebuild_db_from_gcs(
+        bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX, force=force_flag
+    )
     return templates.TemplateResponse("rebuild.html", {"request": request})
 
 
