@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: home-app
+  labels:
+    app: home-app
 spec:
   replicas: 1
   selector:
@@ -12,6 +14,7 @@ spec:
       labels:
         app: home-app
     spec:
+      serviceAccountName: default
       containers:
         - name: home-app
           image: fogcat5/home-app:latest
@@ -24,9 +27,14 @@ spec:
             - name: gcp-credentials
               mountPath: /app/service-account-key.json
               subPath: service-account-key.json
+          env:
+            - name: ALLOWED_USER_EMAILS
+              value: "fogcat5@gmail.com"
+            - name: ALLOWED_SERVICE_ACCOUNT_IDS
+              value: "system:serviceaccount:default:backup-trigger-sa"
           envFrom:
             - secretRef:
-               name: tracker-secrets
+                name: tracker-secrets
       volumes:
         - name: uploads
           persistentVolumeClaim:

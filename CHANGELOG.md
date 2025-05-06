@@ -118,3 +118,13 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 * Version **v0.6.2** deployed to `prod`
 * System stable, responsive, and fully functional
 * Celebrated with a Moon Time Hazy IPA from Morgan Territory Brewing
+
+### Added
+- `GET /backup-now` route to trigger a manual DB backup.
+- Uploads are skipped if no DB changes since last backup.
+- Auth via logged-in user or Kubernetes service account.
+- Configurable via `ALLOWED_USER_EMAILS` and `ALLOWED_SERVICE_ACCOUNT_IDS`.
+
+### Infra
+- Added support for Kubernetes CronJob to trigger backups using a service account.
+- Backup files uploaded to GCS in `db-backups/` with automatic cleanup policy.

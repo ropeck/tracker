@@ -46,7 +46,7 @@ import os
 import re
 import shutil
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -139,6 +139,8 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key="some-random-secret-you-wont-guess")
 app.include_router(auth_router)
 
+auth_scheme = HTTPBearer(auto_error=False)
+
 # Config
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -185,8 +187,6 @@ app.add_middleware(
 
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
-
-auth_scheme = HTTPBearer()
 
 
 async def process_image(upload_info):
@@ -532,39 +532,59 @@ async def trigger_backup(
     user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
 ):
-    allowed_users = os.getenv("ALLOWED_USER_EMAILS", "").split(",")
-    allowed_sas = os.getenv("ALLOWED_SERVICE_ACCOUNT_IDS", "").split(",")
+    allowed_users = [
+        email.strip()
+        for email in os.getenv("ALLOWED_USER_EMAILS", "").split(",")
+        if email.strip()
+    ]
+    allowed_sas = [
+        sa.strip()
+        for sa in os.getenv("ALLOWED_SERVICE_ACCOUNT_IDS", "").split(",")
+        if sa.strip()
+    ]
 
-    if user and user.get("email") in allowed_users:
-        logging.info(
-            f"🔐 Authenticated user {user.get('email')} allowed to trigger backup"
-        )
-
+    # AUTH BYPASS (dev/testing only)
+    if os.getenv("DISABLE_BACKUP_AUTH", "").lower() == "true":
+        logging.warning("⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)")
     else:
-        # Check token from Authorization header
-        token = credentials.credentials if credentials else None
-        if not token:
-            raise HTTPException(
-                status_code=403, detail="Missing or invalid credentials"
-            )
-
-        try:
-            # NOTE: In-cluster service account tokens are short-lived signed JWTs
-            # You can skip signature verification if only used in-cluster
-            info = jwt.decode(token, verify=False)  # skip key lookup
-            subject = info.get("sub")
-            if subject in allowed_sas:
-                logging.info(f"🔐 Authenticated service account '{subject}' allowed")
-            else:
-                logging.warning(f"❌ Unauthorized service account '{subject}'")
-                raise HTTPException(
-                    status_code=403, detail="Unauthorized service account"
+        # 1. OAuth2 user
+        if user:
+            email = user.get("email")
+            if email in allowed_users:
+                logging.info(
+                    f"✅ Authenticated user '{email}' allowed to trigger backup"
                 )
-        except Exception as e:
-            logging.warning(f"❌ JWT decode error: {e}")
-            raise HTTPException(status_code=403, detail="Invalid service account token")
+            else:
+                logging.warning(f"❌ User '{email}' not in allowlist")
+                raise HTTPException(status_code=403, detail="Unauthorized user")
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+        # 2. Kubernetes Service Account
+        else:
+            token = credentials.credentials if credentials else None
+            if not token:
+                raise HTTPException(
+                    status_code=403, detail="Missing Authorization token"
+                )
+
+            try:
+                info = jwt.decode(token, verify=False)  # in-cluster: skip verify
+                subject = info.get("sub")
+                if subject in allowed_sas:
+                    logging.info(
+                        f"✅ Authenticated service account '{subject}' allowed to trigger backup"
+                    )
+                else:
+                    logging.warning(f"❌ Service account '{subject}' not in allowlist")
+                    raise HTTPException(
+                        status_code=403, detail="Unauthorized service account"
+                    )
+            except Exception as e:
+                logging.warning(f"❌ JWT decode error: {e}")
+                raise HTTPException(
+                    status_code=403, detail="Invalid service account token"
+                )
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     backup_filename = f"backup-{today}.sqlite3"
     backup_path = DB_BACKUP_DIR / backup_filename
 
@@ -581,7 +601,9 @@ async def trigger_backup(
             logging.info("📦 No DB changes since last backup. Skipping upload.")
             return {"status": "skipped", "reason": "No changes detected."}
 
-    shutil.copy(BACKUP_DB_PATH, backup_path)
+    async with aiosqlite.connect(BACKUP_DB_PATH) as src_db:
+        async with aiosqlite.connect(backup_path) as dest_db:
+            await src_db.backup(dest_db)
 
     with open(backup_path, "rb") as f:
         gcs_path = f"db-backups/{backup_filename}"
