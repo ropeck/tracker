@@ -118,50 +118,40 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 * Version **v0.6.2** deployed to `prod`
 * System stable, responsive, and fully functional
 * Celebrated with a Moon Time Hazy IPA from Morgan Territory Brewing
+  
+## ✅ 2025-05-05 – GCS Backup Trigger & Auth Control
 
-✅ 2025-05-06 – GCS Backup Trigger & Auth Control
-🆕 New Feature: Manual + Automated DB Backups
+🆕 **New Feature: Manual + Automated DB Backups**
 
-Added GET /backup-now route to create and upload a snapshot of the SQLite DB to GCS
+* Added `GET /backup-now` route to create and upload a snapshot of the SQLite DB to GCS
+* Uses `sqlite3.backup()` for safe, live-copy backup without interrupting usage
+* Skips upload if the DB hasn't changed since the last snapshot (checksum comparison)
+* Filenames follow the format `backup-YYYY-MM-DD.sqlite3` and are stored in `db-backups/`
 
-Uses sqlite3.backup() for safe, live-copy backup without interrupting usage
+🛡️ **Secure Access Controls**
 
-Skips upload if the DB hasn't changed since the last snapshot (checksum comparison)
+* Route is restricted to:
 
-Filenames follow the format backup-YYYY-MM-DD.sqlite3 and are stored in db-backups/
+  * Approved OAuth2 users (`ALLOWED_USER_EMAILS`)
+  * Kubernetes service account tokens (`ALLOWED_SERVICE_ACCOUNT_IDS`)
+* Dev/testing override supported via `DISABLE_BACKUP_AUTH=true`
 
-🛡️ Secure Access Controls
+🛠️ **Kubernetes Integration**
 
-Route is restricted to:
+* CronJob deployed to trigger the backup each night using an internal curl call and a scoped service account
+* Logs confirm backups are successful and uploaded as expected
+* Service account identity validated through decoded JWT `sub` claim
 
-Approved OAuth2 users (ALLOWED_USER_EMAILS)
+🧼 **Retention & Cleanup**
 
-Kubernetes service account tokens (ALLOWED_SERVICE_ACCOUNT_IDS)
+* Retains a minimum of 15 backup files
+* Deletes older backups beyond 30 days if the 15-backup threshold is satisfied
 
-Dev/testing override supported via DISABLE_BACKUP_AUTH=true
+📦 **Status**
 
-🛠️ Kubernetes Integration
-
-CronJob deployed to trigger the backup each night using an internal curl call and a scoped service account
-
-Logs confirm backups are successful and uploaded as expected
-
-Service account identity validated through decoded JWT sub claim
-
-🧼 Retention & Cleanup
-
-Retains a minimum of 15 backup files
-
-Deletes older backups beyond 30 days if the 15-backup threshold is satisfied
-
-📦 Status
-
-Version v0.6.3 deployed to prod (GKE)
-
-Manual and automated backups confirmed working in logs
-
-Snapshot verified in GCS: fogcat5-home/db-backups/backup-2025-05-06.sqlite3
-
-System stable and ready for hands-off daily operation
+* Version `v0.6.3` deployed to prod (GKE)
+* Manual and automated backups confirmed working in logs
+* Snapshot verified in GCS: `fogcat5-home/db-backups/backup-2025-05-06.sqlite3`
+* System stable and ready for hands-off daily operation
 
 🍻 Celebrated with fresh popcorn and a smooth rollout
