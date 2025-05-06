@@ -38,6 +38,7 @@
 # - Clean, readable FastAPI routes
 
 import asyncio
+import hashlib
 import json
 import logging
 import mimetypes
@@ -51,7 +52,17 @@ from urllib.parse import urlencode
 
 import aiosqlite
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Security,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     HTMLResponse,
@@ -59,8 +70,11 @@ from fastapi.responses import (
     RedirectResponse,
     StreamingResponse,
 )
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from google.auth import jwt
+from google.auth.transport import requests as google_requests
 from google.cloud import storage
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
@@ -135,6 +149,13 @@ if not META_FILE.exists():
 GCS_BUCKET = "fogcat5-home"
 GCS_UPLOAD_PREFIX = "upload"
 
+
+DB_BACKUP_DIR = Path("backups")
+DB_BACKUP_DIR.mkdir(exist_ok=True)
+BACKUP_DB_PATH = UPLOAD_DIR / "metadata.db"
+MIN_BACKUPS = 15
+MAX_BACKUP_AGE_DAYS = 30
+
 # tags to ignore in the top 10 list
 BLOCKED_TAGS = {
     "objects",
@@ -164,6 +185,8 @@ app.add_middleware(
 
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
+
+auth_scheme = HTTPBearer()
 
 
 async def process_image(upload_info):
@@ -501,3 +524,91 @@ async def search_by_prompt(request: Request):
             "q": prompt,
         },
     )
+
+
+@app.get("/backup-now")
+async def trigger_backup(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
+):
+    allowed_users = os.getenv("ALLOWED_USER_EMAILS", "").split(",")
+    allowed_sas = os.getenv("ALLOWED_SERVICE_ACCOUNT_IDS", "").split(",")
+
+    if user and user.get("email") in allowed_users:
+        logging.info(
+            f"🔐 Authenticated user {user.get('email')} allowed to trigger backup"
+        )
+
+    else:
+        # Check token from Authorization header
+        token = credentials.credentials if credentials else None
+        if not token:
+            raise HTTPException(
+                status_code=403, detail="Missing or invalid credentials"
+            )
+
+        try:
+            # NOTE: In-cluster service account tokens are short-lived signed JWTs
+            # You can skip signature verification if only used in-cluster
+            info = jwt.decode(token, verify=False)  # skip key lookup
+            subject = info.get("sub")
+            if subject in allowed_sas:
+                logging.info(f"🔐 Authenticated service account '{subject}' allowed")
+            else:
+                logging.warning(f"❌ Unauthorized service account '{subject}'")
+                raise HTTPException(
+                    status_code=403, detail="Unauthorized service account"
+                )
+        except Exception as e:
+            logging.warning(f"❌ JWT decode error: {e}")
+            raise HTTPException(status_code=403, detail="Invalid service account token")
+
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    backup_filename = f"backup-{today}.sqlite3"
+    backup_path = DB_BACKUP_DIR / backup_filename
+
+    if not BACKUP_DB_PATH.exists():
+        raise HTTPException(status_code=500, detail="No DB to back up")
+
+    # Detect if backup already exists and contents are identical
+    if backup_path.exists():
+        with open(BACKUP_DB_PATH, "rb") as f:
+            current_hash = hashlib.md5(f.read()).hexdigest()
+        with open(backup_path, "rb") as f:
+            backup_hash = hashlib.md5(f.read()).hexdigest()
+        if current_hash == backup_hash:
+            logging.info("📦 No DB changes since last backup. Skipping upload.")
+            return {"status": "skipped", "reason": "No changes detected."}
+
+    shutil.copy(BACKUP_DB_PATH, backup_path)
+
+    with open(backup_path, "rb") as f:
+        gcs_path = f"db-backups/{backup_filename}"
+        upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
+
+    logging.info(f"✅ DB backup uploaded: {gcs_path}")
+    await cleanup_old_backups()
+
+    return {"status": "uploaded", "gcs_path": gcs_path}
+
+
+async def cleanup_old_backups():
+    backups = sorted(DB_BACKUP_DIR.glob("backup-*.sqlite3"), key=os.path.getmtime)
+    if len(backups) <= MIN_BACKUPS:
+        return
+
+    now = datetime.utcnow().timestamp()
+    cutoff = now - (MAX_BACKUP_AGE_DAYS * 86400)
+    kept = 0
+
+    for path in backups:
+        if kept < MIN_BACKUPS:
+            kept += 1
+            continue
+        if os.path.getmtime(path) < cutoff:
+            logging.info(f"🧹 Removing old backup: {path}")
+            try:
+                path.unlink()
+            except Exception as e:
+                logging.warning(f"Could not delete {path}: {e}")

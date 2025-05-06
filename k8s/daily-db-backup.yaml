@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-db-backup
+  namespace: default  # Change if your app is in another namespace
+spec:
+  schedule: "0 3 * * *"  # Run at 3AM UTC daily
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: backup-trigger-sa
+          containers:
+          - name: backup-trigger
+            image: curlimages/curl:latest
+            command:
+              - /bin/sh
+              - -c
+              - |
+                TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+                curl -s -X GET http://home-app.default.svc.cluster.local/backup-now \
+                  -H "Authorization: Bearer $TOKEN"
+            volumeMounts:
+            - name: sa-token
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+          restartPolicy: OnFailure
+          volumes:
+          - name: sa-token
+            projected:
+              sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: home-app
+                  expirationSeconds: 600
