@@ -155,3 +155,16 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 * System stable and ready for hands-off daily operation
 
 🍻 Celebrated with fresh popcorn and a smooth rollout
+
+## 2025-05-06
+
+### Added
+
+- Implemented automatic restoration of the latest `.sqlite3` database snapshot from GCS on startup.
+- Enhanced `rebuild_db_from_gcs()` to support applying `summary.txt` deltas created after a specified timestamp.
+- Introduced `perform_gcs_backup()` to automate the backup process after applying deltas.
+- Added `/healthz` endpoint for health checks, returning status and image count.
+
+### Changed
+
+- Refactored backup logic to separate authentication from the backup operation, allowing internal calls without authentication.
