@@ -83,7 +83,7 @@ from starlette.requests import Request
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
-from scripts.rebuild import rebuild_db_from_gcs
+from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
 from scripts.util import clean_tag_name
 from scripts.vision import analyze_image_with_openai, call_openai_chat
 
@@ -118,10 +118,19 @@ async def lifespan(app: FastAPI):
     logging.info("🚀 Upload processing queue started.")
 
     # ⬇️ Initialize database on startup
-    logging.info("Initialized sqlite database.")
+    restored = await restore_db_from_gcs_snapshot(GCS_BUCKET)
+    if restored:
+        logging.info("Restoring DB from GCS snapshot and delta sync...")
+        await perform_backup()
+    else:
+        logging.info("Fallback: rebuilding DB from summary.txt")
+
     await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
 
+    logging.info("Initialized sqlite database.")
+
     await init_db()
+    await perform_backup()
 
     yield
 
@@ -184,6 +193,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/healthz")
+async def health_check():
+    try:
+        async with aiosqlite.connect(BACKUP_DB_PATH) as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM images")
+            row = await cursor.fetchone()
+            image_count = row[0] if row else 0
+        return {
+            "status": "ok",
+            "db_file": str(BACKUP_DB_PATH),
+            "image_count": image_count,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        logging.warning(f"🩺 Health check failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)},
+        )
 
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
@@ -584,12 +614,20 @@ async def trigger_backup(
                     status_code=403, detail="Invalid service account token"
                 )
 
+    return await perform_backup()
+
+
+async def perform_backup():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     backup_filename = f"backup-{today}.sqlite3"
     backup_path = DB_BACKUP_DIR / backup_filename
 
     if not BACKUP_DB_PATH.exists():
         raise HTTPException(status_code=500, detail="No DB to back up")
+
+    async with aiosqlite.connect(BACKUP_DB_PATH) as src_db:
+        async with aiosqlite.connect(backup_path) as dest_db:
+            await src_db.backup(dest_db)
 
     # Detect if backup already exists and contents are identical
     if backup_path.exists():
@@ -601,10 +639,7 @@ async def trigger_backup(
             logging.info("📦 No DB changes since last backup. Skipping upload.")
             return {"status": "skipped", "reason": "No changes detected."}
 
-    async with aiosqlite.connect(BACKUP_DB_PATH) as src_db:
-        async with aiosqlite.connect(backup_path) as dest_db:
-            await src_db.backup(dest_db)
-
+    logging.info(f"📦 DB backup created: {backup_filename}")
     with open(backup_path, "rb") as f:
         gcs_path = f"db-backups/{backup_filename}"
         upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
