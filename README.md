@@ -65,6 +65,51 @@ flowchart TD
     I --> J[Gallery and Uploaded Photo Display Updated]
 ```
 
+## 🧪 Testing
+
+### 🔧 One-Time Setup
+
+To set up the Python virtual environment and install dependencies:
+
+```bash
+make dev
+```
+
+This creates a `venv/` directory and installs required packages from `requirements.txt`.
+
+---
+
+### ✅ Running Tests
+
+To run all unit tests:
+
+```bash
+make test
+```
+
+To run tests with coverage and see which lines are missing:
+
+```bash
+make coverage
+```
+
+To open the HTML coverage report in your browser:
+
+```bash
+make open-coverage
+```
+
+---
+
+### 🧹 Cleaning Up
+
+To remove the virtual environment, test cache, and coverage reports:
+
+```bash
+make clean
+```
+
+
 ---
 
 ## MVP Status - April 19, 2025 ✅

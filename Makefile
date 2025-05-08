@@ -10,14 +10,11 @@ PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 
-# For pushing to GitHub Container Registry:
-# IMAGE := ghcr.io/ropeck/$(APP_NAME)
-
-.PHONY: all build push deploy logs shell
+.PHONY: all build push deploy logs shell test coverage open-coverage clean
 
 all: build push deploy
 
-dev:	$(VENV)/bin/activate
+dev: $(VENV)/bin/activate
 
 $(VENV)/bin/activate:
 	@echo "🔧 Creating virtual environment..."
@@ -27,9 +24,6 @@ $(VENV)/bin/activate:
 	@echo "📦 Installing required packages..."
 	$(PIP) install fastapi python-multipart uvicorn pillow openai jinja2 dotenv
 	$(PIP) install -r requirements.txt
-
-clean:
-	rm -rf $(VENV)
 
 build:
 	docker build -t $(IMAGE):$(TAG) . --load
@@ -55,13 +49,17 @@ apply-secrets:
 describe:
 	kubectl describe deployment $(DEPLOYMENT) -n $(NAMESPACE)
 
-clean:
-	docker rmi $(IMAGE):$(TAG)
-
 tag:
 	@read -p "Enter tag version: " version; \
 	docker tag $(IMAGE):latest $(IMAGE):$$version; \
 	docker push $(IMAGE):$$version
 
-logs:
-	kubectl logs -l app=home-app -f
+# 🧪 Tests
+test:
+	$(PYTEST) -v
+
+coverage:
+	$(PYTEST) --cov=scripts --cov-report=term-missing --cov-report=html
+
+open-coverage:
+	xdg-open htmlcov/index.ht
