@@ -263,7 +263,7 @@ async def process_image(upload_info):
                 "filename": filename,
                 "summary": result["summary"],
                 "label": label,
-                "timestamp": utc_now_iso()),
+                "timestamp": utc_now_iso(),
             }
         )
         META_FILE.write_text(json.dumps(meta, indent=2))
