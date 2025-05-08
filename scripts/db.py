@@ -1,11 +1,12 @@
 import aiosqlite
+from scripts.util import utc_now_iso
 
 DB_PATH = "uploads/metadata.db"
 
 
-async def init_db():
+async def init_db(schema_path="scripts/schema.sql"):
     async with aiosqlite.connect(DB_PATH) as db:
-        with open("scripts/schema.sql") as f:
+        with open(schema_path, "r") as f:
             await db.executescript(f.read())
         await db.commit()
 

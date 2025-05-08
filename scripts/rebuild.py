@@ -2,14 +2,14 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiosqlite
 from google.cloud import storage
 
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
-from scripts.util import clean_tag_name
+from scripts.util import clean_tag_name, parse_utc_timestamp, utc_now_iso
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -60,7 +60,7 @@ async def rebuild_db_from_gcs(
     """
 
     if not since_timestamp and not should_rebuild_db(force):
-        return
+        return None
 
     logger.info("🔁 Starting rebuild from GCS...")
 
@@ -77,8 +77,9 @@ async def rebuild_db_from_gcs(
         # Optional time filtering
         if since_timestamp:
             try:
-                cutoff_dt = datetime.fromisoformat(since_timestamp)
-                blobs = [b for b in blobs if b.updated.replace(tzinfo=None) > cutoff_dt]
+                cutoff_dt = parse_utc_timestamp(since_timestamp)
+
+                blobs = [b for b in blobs if b.updated.astimezone(UTC) > cutoff_dt]
                 logging.info(
                     f"🔍 Filtered to {len(blobs)} summary files after {since_timestamp}"
                 )
@@ -91,9 +92,8 @@ async def rebuild_db_from_gcs(
             filename = os.path.basename(blob.name).replace(".summary.txt", "")
             logging.info(f"🔁 Processing {filename}")
             contents = blob.download_as_text()
-            timestamp = datetime.utcnow().isoformat(timespec="seconds")
 
-            await add_image(filename, label="", timestamp=timestamp)
+            await add_image(filename, label="", timestamp=utc_now_iso())
             for line in contents.splitlines():
                 tag = clean_tag_name(line)
                 if tag:
@@ -146,6 +146,16 @@ async def restore_db_from_gcs_snapshot(
             cursor = await db.execute("SELECT MAX(timestamp) FROM images")
             row = await cursor.fetchone()
             latest_ts = row[0]
+        if latest_ts:
+            # Make sure it's timezone-aware
+            ts = datetime.fromisoformat(latest_ts)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            else:
+                ts = ts.astimezone(UTC)
+
+            # Pass string version forward
+            latest_ts = ts.isoformat(timespec="seconds")
 
         logging.info(f"🔍 Latest DB image timestamp: {latest_ts or 'None'}")
 

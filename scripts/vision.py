@@ -50,19 +50,14 @@ def analyze_image_with_openai(image_path: str) -> dict:
     return {"summary": content}
 
 
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_async_client():
+    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 async def call_openai_chat(user_prompt: str, system_prompt: str = "") -> str:
+    client = get_async_client()
     try:
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-        )
+        response = await client.chat.completions.create(...)
         return response.choices[0].message.content.strip()
     except Exception as e:
         logging.exception(f"OpenAI API error: {e}")

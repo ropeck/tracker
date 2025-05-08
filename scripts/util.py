@@ -1,4 +1,14 @@
 import re
+from datetime import UTC, datetime
+
+
+def utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def parse_utc_timestamp(ts: str) -> datetime:
+    dt = datetime.fromisoformat(ts)
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 def clean_tag_name(tag: str) -> str:

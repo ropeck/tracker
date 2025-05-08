@@ -84,7 +84,7 @@ from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
 from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
-from scripts.util import clean_tag_name
+from scripts.util import clean_tag_name, utc_now_iso
 from scripts.vision import analyze_image_with_openai, call_openai_chat
 
 load_dotenv()
@@ -249,7 +249,7 @@ async def process_image(upload_info):
             )
 
         # After uploading thumb/summary
-        await add_image(filename, label, datetime.now().isoformat(timespec="seconds"))
+        await add_image(filename, label, utc_now_iso())
         for tag in result["summary"].splitlines():
             clean_tag = clean_tag_name(tag)
             if clean_tag:
@@ -263,7 +263,7 @@ async def process_image(upload_info):
                 "filename": filename,
                 "summary": result["summary"],
                 "label": label,
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "timestamp": utc_now_iso()),
             }
         )
         META_FILE.write_text(json.dumps(meta, indent=2))
@@ -362,7 +362,7 @@ async def protected_upload(
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    timestamp = datetime.now().isoformat(timespec="seconds")
+    timestamp = utc_now_iso()
     filename = f"{timestamp.replace(':', '-')}_{upload.filename}"
     file_path = UPLOAD_DIR / filename
 

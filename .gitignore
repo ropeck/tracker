@@ -9,3 +9,4 @@ __pycache__/
 venv
 uploads
 service-account-key.json
+.coverage

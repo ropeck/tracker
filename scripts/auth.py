@@ -48,13 +48,13 @@ async def auth(request: Request):
         print(f"Access denied for: {user.get('email')}")
         return RedirectResponse("/unauthorized", status_code=302)
 
-    return RedirectResponse(url="/")
+    return RedirectResponse(url="/", status_code=302)
 
 
 @router.get("/logout")
 async def logout(request: Request):
     request.session.pop("user", None)
-    return RedirectResponse(url="/")
+    return RedirectResponse(url="/", status_code=302)
 
 
 def get_current_user(request: Request):

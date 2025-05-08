@@ -1,0 +1,38 @@
+name: Run Unit Tests and Coverage
+
+on:
+  push:
+    branches: [prod]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: 🧪 Run tests with coverage
+        run: |
+          pytest --cov=scripts --cov-report=html --cov-report=term-missing --cov-fail-under=85
+
+      - name: ✅ Success
+        if: success()
+        run: echo "✅ Tests and coverage passed"
+
+      - name: 📂 Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: htmlcov
+          path: htmlcov

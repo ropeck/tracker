@@ -2,6 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Framework-green?logo=fastapi)](https://fastapi.tiangolo.com/)
+![Tests](https://github.com/fogcat5/home-app/actions/workflows/test-and-coverage.yml/badge.svg)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Private-lightgrey)]()
 
@@ -227,3 +228,14 @@ You’re in a perfect spot to transition from flat storage to a real search-capa
 * **Uvicorn Configuration**: Opted to use environment variables for passing arguments to Uvicorn. Set `FORCE_REBUILD` in the Kubernetes YAML to trigger a rebuild.
 * **Code Enhancements**: Refactored `rebuild_db_from_gcs` for improved readability and added comprehensive docstrings. Ensured that comments wrap at 80 columns in VS Code for consistency.
 * **Testing**: Conducted local testing to confirm that the rebuild logic works as expected. Verified that the database rebuilds when `FORCE_REBUILD` is set and skips when it's not.
+
+## 📅 Tuesday, May 7, 2025
+
+### 🧪 Testing & Deployment Pipeline
+
+* **Unit Tests Added**: Created test suites for key modules including `db.py`, `rebuild.py`, `vision.py`, `util.py`, `auth.py`, and `logger_nfc.py`. Used `pytest`, `pytest-asyncio`, and `pytest-cov` to ensure full coverage and reliability.
+* **GCS Summary Parsing**: Validated that images with empty `summary.txt` files are handled correctly and don’t trigger tag creation. Ensured timestamp-based filtering behaves as expected.
+* **OpenAI Mocking**: Refactored `vision.py` to make the OpenAI client injectable. This allows mocking during tests and avoids requiring a real API key during import or test runs.
+* **GitHub Actions**: Set up a `test-and-coverage.yml` workflow to run on every push and PR. Configured coverage thresholds and HTML report upload for visibility.
+* **Prod Deployment Workflow**: Updated the `deploy-proy.yml` to depend on test success. It now runs only if the `test-and-coverage` workflow passes, ensuring broken builds don’t reach production.
+* **Badge Added**: Included a live status badge in `README.md` to reflect the current test suite health.

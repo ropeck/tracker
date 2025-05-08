@@ -1,6 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
+      
         
       {
         "name": "Python Debugger: Current File",
@@ -21,6 +22,17 @@
         ],
         "justMyCode": false,
         "console": "integratedTerminal"
+      },
+      {
+        "name": "Debug Pytest Current File",
+        "type": "python",
+        "request": "launch",
+        "module": "pytest",
+        "args": [
+          "${file}"
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false
       }
     ]
   }
