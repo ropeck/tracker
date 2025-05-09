@@ -1,15 +1,20 @@
+import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiosqlite
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from scripts import logger
+from scripts.logger import get_current_user
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.get_current_user", return_value={"email": "fogcat5@gmail.com"})
-async def test_rebuild_route(mock_user):
+async def test_rebuild_route():
+    logger.app.dependency_overrides[get_current_user] = lambda: {
+        "email": "fogcat5@gmail.com"
+    }
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         with patch(
@@ -21,7 +26,7 @@ async def test_rebuild_route(mock_user):
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.storage.Client")
+@patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_file_found(mock_client):
     blob = MagicMock()
     blob.exists.return_value = True
@@ -36,7 +41,7 @@ async def test_gcs_proxy_file_found(mock_client):
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.storage.Client")
+@patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_not_found(mock_client):
     blob = MagicMock()
     blob.exists.return_value = False
@@ -50,8 +55,11 @@ async def test_gcs_proxy_not_found(mock_client):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
-async def test_search_query_response(mock_call):
-    mock_call.return_value = ["usb", "audio"]
+async def test_search_query_response(mock_call, tmp_path):
+    # Create dummy image and thumbnail files
+    (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
+    (tmp_path / "test.jpg.thumb.jpg").write_bytes(b"\xff\xd8\xff")
+    mock_call.return_value = json.dumps(["usb", "audio"])
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.post(
@@ -62,12 +70,16 @@ async def test_search_query_response(mock_call):
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.get_current_user", return_value={"email": "fogcat5@gmail.com"})
 @patch("scripts.logger.upload_file_to_gcs")
-async def test_backup_now_success(mock_upload, mock_user, tmp_path):
+async def test_backup_now_success(mock_upload, tmp_path):
+    logger.app.dependency_overrides[get_current_user] = lambda: {
+        "email": "fogcat5@gmail.com"
+    }
     os.environ["ALLOWED_USER_EMAILS"] = "fogcat5@gmail.com"
     logger.BACKUP_DB_PATH = tmp_path / "metadata.db"
-    logger.BACKUP_DB_PATH.write_text("content1")
+    async with aiosqlite.connect(logger.BACKUP_DB_PATH) as db:
+        await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        await db.commit()
 
     backup_path = logger.DB_BACKUP_DIR / "backup-2025-05-07.sqlite3"
     backup_path.write_text("different_content")

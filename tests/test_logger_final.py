@@ -1,25 +1,25 @@
 import os
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiosqlite
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from scripts import logger
 
 
+@patch("scripts.logger.process_uploads", new_callable=AsyncMock)
 @pytest.mark.asyncio
-@patch("scripts.logger.process_uploads")
 async def test_lifespan_runs(mock_worker):
-    # Confirm lifespan startup sequence
     app = logger.app
     async with app.router.lifespan_context(app):
-        mock_worker.assert_not_called()
+        mock_worker.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.storage.Client")
+@patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_content_type_fallback(mock_client):
     blob = MagicMock()
     blob.exists.return_value = True
@@ -35,7 +35,10 @@ async def test_gcs_proxy_content_type_fallback(mock_client):
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.storage.Client", side_effect=Exception("fail"))
+@patch(
+    "scripts.logger.storage.Client.from_service_account_json",
+    side_effect=Exception("fail"),
+)
 async def test_gcs_proxy_internal_error(mock_client):
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -45,9 +48,14 @@ async def test_gcs_proxy_internal_error(mock_client):
 
 @pytest.mark.asyncio
 async def test_search_query_logic(tmp_path):
+    # Create dummy image and thumbnail files
+    (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
+    (tmp_path / "test.jpg.thumb.jpg").write_bytes(b"\xff\xd8\xff")
+
+    # Set up the test DB
     db_path = tmp_path / "metadata.db"
     logger.BACKUP_DB_PATH = db_path
-    async with logger.aiosqlite.connect(db_path) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             "CREATE TABLE images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
         )
@@ -62,23 +70,34 @@ async def test_search_query_logic(tmp_path):
         await db.execute("INSERT INTO image_tags VALUES (1, 1, 1)")
         await db.commit()
 
-    transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.get("/search?q=power")
-        assert res.status_code == 200
-        assert "test.jpg" in res.text
+    real_connect = aiosqlite.connect
+
+    with patch("scripts.logger.UPLOAD_DIR", tmp_path), patch(
+        "scripts.logger.aiosqlite.connect"
+    ) as mock_connect:
+        mock_connect.side_effect = lambda path, *a, **kw: real_connect(
+            db_path, *a, **kw
+        )
+
+        transport = ASGITransport(app=logger.app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            res = await client.get("/search?q=power")
+            assert res.status_code == 200
+            assert "/uploads/thumb/test.jpg.thumb.jpg" in res.text
 
 
-def test_cleanup_old_backups(tmp_path):
+@pytest.mark.asyncio
+async def test_cleanup_old_backups(tmp_path):
     old_file = tmp_path / "backup-2000-01-01.sqlite3"
     old_file.write_text("x")
-    old_time = datetime.utcnow() - timedelta(days=365)
+    old_time = datetime.now(timezone.utc) - timedelta(days=365)
     os.utime(old_file, (old_time.timestamp(), old_time.timestamp()))
 
     for i in range(15):
         path = tmp_path / f"backup-2025-05-{i+1:02d}.sqlite3"
         path.write_text("ok")
-    logger.DB_BACKUP_DIR = tmp_path
 
-    logger.cleanup_old_backups()
+    logger.DB_BACKUP_DIR = tmp_path
+    await logger.cleanup_old_backups()
+
     assert not old_file.exists()

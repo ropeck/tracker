@@ -653,11 +653,14 @@ async def perform_backup():
 
 
 async def cleanup_old_backups():
-    backups = sorted(DB_BACKUP_DIR.glob("backup-*.sqlite3"), key=os.path.getmtime)
+    backups = sorted(
+        DB_BACKUP_DIR.glob("backup-*.sqlite3"), key=os.path.getmtime, reverse=True
+    )
     if len(backups) <= MIN_BACKUPS:
         return
 
-    now = datetime.utcnow().timestamp()
+    now = datetime.now(timezone.utc).timestamp()
+
     cutoff = now - (MAX_BACKUP_AGE_DAYS * 86400)
     kept = 0
 
