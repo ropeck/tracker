@@ -52,15 +52,25 @@ async def test_root_returns_template():
 @patch("scripts.logger.add_image", new_callable=AsyncMock)
 @patch("scripts.logger.add_tag", new_callable=AsyncMock)
 @patch("scripts.logger.link_image_tag", new_callable=AsyncMock)
+@pytest.mark.asyncio
 async def test_process_image_success(
-    mock_link, mock_tag, mock_add, mock_ai, mock_upload, mock_open, tmp_path
+    mock_link,
+    mock_tag,
+    mock_add,
+    mock_ai,
+    mock_upload,
+    mock_open,
+    tmp_path,
 ):
     file_path = tmp_path / "test_image.jpg"
     file_path.write_bytes(b"\xff\xd8\xff")  # Minimal JPEG header
+    thumb_path = file_path.parent / "test_image.jpg.thumb.jpg"
+    thumb_path.write_bytes(b"\x89PNG\r\n\x1a\n")  # Fake PNG thumbnail
     mock_ai.return_value = {"summary": "cable\npower\nswitch"}
     mock_open.return_value.__enter__.return_value = MagicMock()
 
-    await logger.process_image((file_path, "test_image.jpg", "Test"))
+    with patch("scripts.logger.UPLOAD_DIR", new_callable=lambda: tmp_path):
+        await logger.process_image((file_path, "test_image.jpg", "Test"))
     assert mock_add.called
 
 
@@ -68,12 +78,18 @@ def test_upload_file_to_gcs_mocked(tmp_path):
     f = tmp_path / "mock.txt"
     f.write_text("dummy")
     with f.open("rb") as fh:
-        with patch("scripts.logger.storage.Client") as mock_client:
-            blob = MagicMock()
-            mock_client.return_value.bucket.return_value.blob.return_value = blob
+        with patch(
+            "scripts.logger.storage.Client.from_service_account_json"
+        ) as mock_from_json:
+            mock_blob = MagicMock()
+            mock_from_json.return_value.bucket.return_value.blob.return_value = (
+                mock_blob
+            )
+
             path = logger.upload_file_to_gcs("my-bucket", "dest.txt", fh)
+
             assert path == "dest.txt"
-            assert blob.upload_from_file.called
+            assert mock_blob.upload_from_file.called
 
 
 @pytest.mark.asyncio

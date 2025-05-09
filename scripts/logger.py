@@ -286,7 +286,7 @@ async def manual_rebuild(
     await rebuild_db_from_gcs(
         bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX, force=force_flag
     )
-    return templates.TemplateResponse("rebuild.html", {"request": request})
+    return templates.TemplateResponse(request, "rebuild.html")
 
 
 @app.get("/uploads/{path:path}")
@@ -338,13 +338,14 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -
     client = storage.Client.from_service_account_json("/app/service-account-key.json")
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
+    file_obj.seek(0)
     blob.upload_from_file(file_obj, rewind=True)
     return destination_blob_name
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/unauthorized", response_class=HTMLResponse)
@@ -440,7 +441,7 @@ async def view_photos(request: Request):
                 }
             )
     return templates.TemplateResponse(
-        "photo_gallery_template.html", {"request": request, "photos": photos}
+        request, "photo_gallery_template.html", {"photos": photos}
     )
 
 
@@ -497,8 +498,9 @@ async def search_photos(request: Request, q: str = ""):
                 }
             )
     return templates.TemplateResponse(
+        request,
         "search.html",
-        {"request": request, "photos": photos, "top_tags": top_tags, "q": q},
+        {"photos": photos, "top_tags": top_tags, "q": q},
     )
 
 
@@ -546,9 +548,9 @@ async def search_by_prompt(request: Request):
             )
 
     return templates.TemplateResponse(
+        request,
         "search.html",
         {
-            "request": request,
             "photos": photos,
             "top_tags": matched_tags,
             "q": prompt,
