@@ -119,11 +119,15 @@ async def lifespan(app: FastAPI):
     logging.info("🚀 Upload processing queue started.")
 
     # ⬇️ Initialize database on startup
-    restored = await restore_db_from_gcs_snapshot(GCS_BUCKET)
+    restored = BACKUP_DB_PATH.exists() and await restore_db_from_gcs_snapshot(
+        GCS_BUCKET
+    )
     if restored:
         logging.info("Restoring DB from GCS snapshot and delta sync...")
         await perform_backup()
     else:
+        if not BACKUP_DB_PATH.exists():
+            logging.info(f"No database backup found at {BACKUP_DB_PATH}.")
         logging.info("Fallback: rebuilding DB from summary.txt")
 
     await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
