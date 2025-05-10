@@ -109,7 +109,8 @@ async def test_unauthorized_page():
 
 
 @pytest.mark.asyncio
-async def test_get_photos_route_runs(tmp_path):
+@patch("scripts.logger.storage.Client.from_service_account_json")
+async def test_get_photos_route_runs(mock_client, tmp_path):
     db_path = tmp_path / "metadata.db"
     logger.BACKUP_DB_PATH = db_path
     db_path.write_text("")  # touch it
