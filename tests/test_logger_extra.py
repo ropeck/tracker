@@ -59,11 +59,26 @@ async def test_gcs_proxy_not_found(mock_client_svc, mock_client):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
-async def test_search_query_response(mock_call, mock_db, tmp_path):
-    # Create dummy image and thumbnail files
+@patch("scripts.logger.get_db")
+async def test_search_query_response(mock_get_db, mock_call, tmp_path):
+    db_path = tmp_path / "test.db"
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
+        await db.execute("INSERT INTO tags (name) VALUES ('usb'), ('audio')")
+        await db.commit()
+
+    async def override():
+        async with aiosqlite.connect(db_path) as db:
+            yield db
+
+    mock_get_db.side_effect = override
+
     (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
     (tmp_path / "test.jpg.thumb.jpg").write_bytes(b"\xff\xd8\xff")
+
     mock_call.return_value = json.dumps(["usb", "audio"])
+
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.post(
