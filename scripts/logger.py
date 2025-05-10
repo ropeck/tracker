@@ -427,7 +427,7 @@ async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_d
     photos = []
     for row in rows:
         filename, timestamp, tags_str = row
-        tags = tags_str.split(",") if tags_str else []A
+        tags = tags_str.split(",") if tags_str else []
         photos.append(
             {
                 "filename": filename,
@@ -500,8 +500,11 @@ async def search_photos(request: Request, q: str = ""):
         {"photos": photos, "top_tags": top_tags, "q": q},
     )
 
+
 @app.post("/search/query", response_class=HTMLResponse)
-async def search_by_prompt(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+async def search_by_prompt(
+    request: Request, db: aiosqlite.Connection = Depends(get_db)
+):
     form = await request.form()
     prompt = form.get("prompt", "").strip()
 
