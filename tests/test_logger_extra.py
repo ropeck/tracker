@@ -67,6 +67,7 @@ async def test_search_query_response(mock_call, tmp_path):
         await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
         await db.execute("INSERT INTO tags (name) VALUES ('usb'), ('audio')")
         await db.commit()
+        await db.close()
 
     # Use FastAPI's override system
     async def override_get_db():

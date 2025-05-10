@@ -126,6 +126,7 @@ async def test_get_photos_route_runs(tmp_path):
             "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
         )
         await db.commit()
+        await db.close()
 
     # Use FastAPI's override system
     async def override_get_db():
