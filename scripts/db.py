@@ -1,4 +1,6 @@
 import aiosqlite
+
+from scripts.config import BACKUP_DB_PATH
 from scripts.util import utc_now_iso
 
 DB_PATH = "uploads/metadata.db"
@@ -44,3 +46,8 @@ async def link_image_tag(filename, tag_name):
                 (image[0], tag[0]),
             )
             await db.commit()
+
+
+async def get_db():
+    async with aiosqlite.connect(BACKUP_DB_PATH) as db:
+        yield db

@@ -2,12 +2,14 @@
 
 import os
 import tempfile
+from unittest.mock import patch
 
 import aiosqlite
 import pytest
 import pytest_asyncio
 
 from scripts import db as db_module
+from scripts.db import get_db
 
 
 @pytest_asyncio.fixture
@@ -91,3 +93,20 @@ async def test_tags_are_linked_correctly(temp_db):
         )
         tags = [row[0] for row in await cursor.fetchall()]
         assert set(tags) == {"sky", "weather"}
+
+
+@pytest.mark.asyncio
+async def test_get_db_yields_connection(tmp_path):
+    test_db_path = tmp_path / "test.db"
+
+    with patch("scripts.db.BACKUP_DB_PATH", test_db_path):
+        async for db in get_db():
+            assert isinstance(db, aiosqlite.Connection)
+
+            await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
+            await db.execute("INSERT INTO test (value) VALUES ('hello')")
+            await db.commit()
+
+            async with db.execute("SELECT value FROM test") as cursor:
+                row = await cursor.fetchone()
+                assert row[0] == "hello"

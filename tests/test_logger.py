@@ -109,11 +109,17 @@ async def test_unauthorized_page():
 
 
 @pytest.mark.asyncio
+@patch("scripts.db.get_db")
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_get_photos_route_runs(mock_client, tmp_path):
+async def test_get_photos_route_runs(mock_client, mock_get_db, tmp_path):
     db_path = tmp_path / "metadata.db"
-    logger.BACKUP_DB_PATH = db_path
     db_path.write_text("")  # touch it
+
+    async def override():
+        async with aiosqlite.connect(db_path) as db:
+            yield db
+
+    mock_get_db.side_effect = override
 
     async with logger.aiosqlite.connect(db_path) as db:
         await db.execute(

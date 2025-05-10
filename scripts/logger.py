@@ -82,6 +82,7 @@ from starlette.requests import Request
 
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
+from scripts.config import BACKUP_DB_PATH, DB_BACKUP_DIR
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
 from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
 from scripts.util import clean_tag_name, utc_now_iso
@@ -161,9 +162,6 @@ GCS_BUCKET = "fogcat5-home"
 GCS_UPLOAD_PREFIX = "upload"
 
 
-DB_BACKUP_DIR = Path("backups")
-DB_BACKUP_DIR.mkdir(exist_ok=True)
-BACKUP_DB_PATH = UPLOAD_DIR / "metadata.db"
 MIN_BACKUPS = 15
 MAX_BACKUP_AGE_DAYS = 30
 
