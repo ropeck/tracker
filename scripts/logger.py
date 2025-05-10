@@ -83,7 +83,7 @@ from starlette.requests import Request
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.config import BACKUP_DB_PATH, DB_BACKUP_DIR
-from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
+from scripts.db import DB_PATH, add_image, add_tag, get_db, init_db, link_image_tag
 from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
 from scripts.util import clean_tag_name, utc_now_iso
 from scripts.vision import analyze_image_with_openai, call_openai_chat
@@ -412,32 +412,31 @@ Reply with a JSON array of tag names. For example:
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def view_photos(request: Request):
-    async with aiosqlite.connect("uploads/metadata.db") as db:
-        cursor = await db.execute(
-            """
-            SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
-            FROM images
-            LEFT JOIN image_tags ON images.id = image_tags.image_id
-            LEFT JOIN tags ON image_tags.tag_id = tags.id
-            GROUP BY images.id
-            ORDER BY images.timestamp DESC
+async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+    cursor = await db.execute(
         """
+        SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+        FROM images
+        LEFT JOIN image_tags ON images.id = image_tags.image_id
+        LEFT JOIN tags ON image_tags.tag_id = tags.id
+        GROUP BY images.id
+        ORDER BY images.timestamp DESC
+        """
+    )
+    rows = await cursor.fetchall()
+    photos = []
+    for row in rows:
+        filename, timestamp, tags_str = row
+        tags = tags_str.split(",") if tags_str else []
+        photos.append(
+            {
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            }
         )
-        rows = await cursor.fetchall()
-        photos = []
-        for row in rows:
-            filename, timestamp, tags_str = row
-            tags = tags_str.split(",") if tags_str else []
-            photos.append(
-                {
-                    "filename": filename,
-                    "timestamp": timestamp,
-                    "tags": tags,
-                    "proxy_url": f"/uploads/{filename}",
-                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-                }
-            )
     return templates.TemplateResponse(
         request, "photo_gallery_template.html", {"photos": photos}
     )

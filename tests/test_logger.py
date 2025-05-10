@@ -114,32 +114,33 @@ async def test_unauthorized_page():
 async def test_get_photos_route_runs(tmp_path):
     db_path = tmp_path / "test.db"
 
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute(
-            "CREATE TABLE images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
-        )
-        await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
-        await db.execute(
-            "CREATE TABLE image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
-        )
-        await db.execute(
-            "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
-        )
-        await db.commit()
-        await db.close()
-
-    # Use FastAPI's override system
     async def override_get_db():
-        print(f"[override_get_db] Opening DB: {db_path}")
+        print(f"[override_get_db] Using test DB at: {db_path}")
         async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
+            )
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT)"
+            )
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
+            )
+            await db.execute(
+                "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
+            )
+            await db.commit()
             yield db
 
-    logger.app.dependency_overrides[get_db] = override_get_db
+    from scripts.db import get_db as logger_get_db
+
+    logger.app.dependency_overrides[logger_get_db] = override_get_db
 
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get("/photos")
         assert res.status_code == 200
+        assert "file1.jpg" in res.text
 
-    # Clean up overrides
-    logger.app.dependency_overrides = {}
+    # Cleanup
+    logger.app.dependency_overrides.clear()

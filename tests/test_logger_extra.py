@@ -63,19 +63,32 @@ async def test_gcs_proxy_not_found(mock_os, mock_client):
 async def test_search_query_response(mock_call, tmp_path):
     db_path = tmp_path / "test.db"
 
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
-        await db.execute("INSERT INTO tags (name) VALUES ('usb'), ('audio')")
-        await db.commit()
-        await db.close()
-
     # Use FastAPI's override system
+
     async def override_get_db():
-        print(f"[override_get_db] Opening DB: {db_path}")
+        print(f"[override_get_db] Using test DB at: {db_path}")
         async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
+            )
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT)"
+            )
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
+            )
+            await db.execute(
+                "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
+            )
+            await db.commit()
             yield db
 
     logger.app.dependency_overrides[get_db] = override_get_db
+
+    print(f"[override check] get_db is: {get_db}")
+    print(
+        f"[override check] keys in app.dependency_overrides: {list(logger.app.dependency_overrides.keys())}"
+    )
 
     async def override():
         async with aiosqlite.connect(db_path) as db:
