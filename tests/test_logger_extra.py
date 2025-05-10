@@ -62,15 +62,16 @@ async def test_gcs_proxy_not_found(mock_os, mock_client):
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
 async def test_search_query_response(mock_call, tmp_path):
     db_path = tmp_path / "test.db"
+    db_path = db_path.resolve()  # 💥 make it absolute!
 
-    # 🔧 Setup the DB and insert data BEFORE override
+    # Prepopulate the DB
     async with aiosqlite.connect(db_path) as db:
         await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
         await db.execute("INSERT INTO tags (name) VALUES ('usb'), ('audio')")
         await db.commit()
 
     async def override_get_db():
-        async with aiosqlite.connect(db_path) as db:
+        async with aiosqlite.connect(str(db_path)) as db:
             yield db
 
     from scripts.db import get_db as logger_get_db
@@ -89,6 +90,8 @@ async def test_search_query_response(mock_call, tmp_path):
         )
         assert res.status_code == 200
         assert "usb" in res.text
+
+    logger.app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
