@@ -109,9 +109,12 @@ async def test_unauthorized_page():
 
 
 @pytest.mark.asyncio
-@patch("scripts.db.get_db")
+@patch("scripts.logger.get_db")
+@patch("scripts.logger.storage.Client")
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_get_photos_route_runs(mock_client, mock_get_db, tmp_path):
+async def test_get_photos_route_runs(
+    mock_client_svc, mock_client, mock_get_db, tmp_path
+):
     db_path = tmp_path / "metadata.db"
     db_path.write_text("")  # touch it
 
