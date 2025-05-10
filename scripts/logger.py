@@ -427,7 +427,7 @@ async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_d
     photos = []
     for row in rows:
         filename, timestamp, tags_str = row
-        tags = tags_str.split(",") if tags_str else []
+        tags = tags_str.split(",") if tags_str else []A
         photos.append(
             {
                 "filename": filename,
@@ -500,49 +500,46 @@ async def search_photos(request: Request, q: str = ""):
         {"photos": photos, "top_tags": top_tags, "q": q},
     )
 
-
 @app.post("/search/query", response_class=HTMLResponse)
-async def search_by_prompt(request: Request):
+async def search_by_prompt(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     form = await request.form()
     prompt = form.get("prompt", "").strip()
 
     # Get all tags from DB
-    async with aiosqlite.connect("uploads/metadata.db") as db:
-        cursor = await db.execute("SELECT DISTINCT name FROM tags")
-        tag_rows = await cursor.fetchall()
-        all_tags = [clean_tag_name(row[0]) for row in tag_rows]
+    cursor = await db.execute("SELECT DISTINCT name FROM tags")
+    tag_rows = await cursor.fetchall()
+    all_tags = [clean_tag_name(row[0]) for row in tag_rows]
 
     matched_tags = await get_tags_from_prompt(prompt, all_tags)
 
     # Fetch photos matching the tags
-    async with aiosqlite.connect("uploads/metadata.db") as db:
-        cursor = await db.execute(
-            """
-            SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
-            FROM images
-            LEFT JOIN image_tags ON images.id = image_tags.image_id
-            LEFT JOIN tags ON image_tags.tag_id = tags.id
-            GROUP BY images.id
-            ORDER BY images.timestamp DESC
-            """
+    cursor = await db.execute(
+        """
+        SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
+        FROM images
+        LEFT JOIN image_tags ON images.id = image_tags.image_id
+        LEFT JOIN tags ON image_tags.tag_id = tags.id
+        GROUP BY images.id
+        ORDER BY images.timestamp DESC
+        """
+    )
+    rows = await cursor.fetchall()
+    photos = []
+    for row in rows:
+        filename, timestamp, tags_str = row
+        tags = tags_str.split(",") if tags_str else []
+        normalized_tags = [clean_tag_name(t) for t in tags]
+        if not any(tag in matched_tags for tag in normalized_tags):
+            continue
+        photos.append(
+            {
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            }
         )
-        rows = await cursor.fetchall()
-        photos = []
-        for row in rows:
-            filename, timestamp, tags_str = row
-            tags = tags_str.split(",") if tags_str else []
-            normalized_tags = [clean_tag_name(t) for t in tags]
-            if not any(tag in matched_tags for tag in normalized_tags):
-                continue
-            photos.append(
-                {
-                    "filename": filename,
-                    "timestamp": timestamp,
-                    "tags": tags,
-                    "proxy_url": f"/uploads/{filename}",
-                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-                }
-            )
 
     return templates.TemplateResponse(
         request,
