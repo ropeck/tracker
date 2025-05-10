@@ -26,8 +26,9 @@ async def test_rebuild_route():
 
 
 @pytest.mark.asyncio
+@patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_file_found(mock_client):
+async def test_gcs_proxy_file_found(mock_client, mock_exists):
     blob = MagicMock()
     blob.exists.return_value = True
     blob.open.return_value = MagicMock()

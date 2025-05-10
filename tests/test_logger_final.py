@@ -10,17 +10,20 @@ from httpx import ASGITransport, AsyncClient
 from scripts import logger
 
 
+@patch("scripts.logger.os.path.exists", return_value=True)
+@patch("scripts.logger.storage.Client.from_service_account_json")
 @patch("scripts.logger.process_uploads", new_callable=AsyncMock)
 @pytest.mark.asyncio
-async def test_lifespan_runs(mock_worker):
+async def test_lifespan_runs(mock_worker, mock_client, mock_exists):
     app = logger.app
     async with app.router.lifespan_context(app):
         mock_worker.assert_called_once()
 
 
 @pytest.mark.asyncio
+@patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_content_type_fallback(mock_client):
+async def test_gcs_proxy_content_type_fallback(mock_client, mock_exists):
     blob = MagicMock()
     blob.exists.return_value = True
     blob.open.return_value = MagicMock()
@@ -35,11 +38,12 @@ async def test_gcs_proxy_content_type_fallback(mock_client):
 
 
 @pytest.mark.asyncio
+@patch("scripts.logger.os.path.exists", return_value=True)
 @patch(
     "scripts.logger.storage.Client.from_service_account_json",
     side_effect=Exception("fail"),
 )
-async def test_gcs_proxy_internal_error(mock_client):
+async def test_gcs_proxy_internal_error(mock_client, mock_exists):
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get("/uploads/shouldfail.jpg")
