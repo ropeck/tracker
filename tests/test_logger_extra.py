@@ -60,8 +60,7 @@ async def test_gcs_proxy_not_found(mock_os, mock_client):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
-@patch("scripts.db.get_db")
-async def test_search_query_response(mock_get_db, mock_call, tmp_path):
+async def test_search_query_response(mock_call, tmp_path):
     db_path = tmp_path / "test.db"
 
     async with aiosqlite.connect(db_path) as db:
@@ -69,11 +68,16 @@ async def test_search_query_response(mock_get_db, mock_call, tmp_path):
         await db.execute("INSERT INTO tags (name) VALUES ('usb'), ('audio')")
         await db.commit()
 
-    async def override():
+    # Use FastAPI's override system
+    async def override_get_db():
         async with aiosqlite.connect(db_path) as db:
             yield db
 
-    mock_get_db.side_effect = override
+    logger.app.dependency_overrides[get_db] = override_get_db
+
+    async def override():
+        async with aiosqlite.connect(db_path) as db:
+            yield db
 
     (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
     (tmp_path / "test.jpg.thumb.jpg").write_bytes(b"\xff\xd8\xff")
