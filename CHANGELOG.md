@@ -168,3 +168,12 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 ### Changed
 
 - Refactored backup logic to separate authentication from the backup operation, allowing internal calls without authentication.
+
+### 🗓️ 2025-05-09 – Full Test Coverage + Final Fixes
+
+* ✅ **All 54 tests passing** (🎉)
+* ✅ **Test coverage increased to 88.91%**, passing the `--cov-fail-under=85` gate.
+* 🧪 Fixed lingering `sqlite3.OperationalError` due to missing test DB setup for `/search/query`.
+* 🔧 Reworked test setup to correctly override `get_db` and ensure schema initialization before test runs.
+* 📸 Ensured `file1.jpg` and test tag values (`"usb"`, `"audio"`) are visible in rendered HTML for verification.
+* 🧹 Cleared all previous intermittent test failures and isolated DB mismatches.
