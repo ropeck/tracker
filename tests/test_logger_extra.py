@@ -45,10 +45,11 @@ async def test_gcs_proxy_file_found(mock_client, mock_exists):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.storage.Client")
-@patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_not_found(mock_client_svc, mock_client):
+@patch("os.path.exists", return_value=False)
+async def test_gcs_proxy_not_found(mock_os, mock_client):
     blob = MagicMock()
     blob.exists.return_value = False
+
     mock_client.return_value.bucket.return_value.blob.return_value = blob
 
     transport = ASGITransport(app=logger.app)
@@ -59,7 +60,7 @@ async def test_gcs_proxy_not_found(mock_client_svc, mock_client):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
-@patch("scripts.logger.get_db")
+@patch("scripts.db.get_db")
 async def test_search_query_response(mock_get_db, mock_call, tmp_path):
     db_path = tmp_path / "test.db"
 
@@ -90,7 +91,7 @@ async def test_search_query_response(mock_get_db, mock_call, tmp_path):
 
 @pytest.mark.asyncio
 @patch("scripts.logger.upload_file_to_gcs")
-async def test_backup_now_success(tmp_path):
+async def test_backup_now_success(mock_upload, tmp_path):
     logger.app.dependency_overrides[get_current_user] = lambda: {
         "email": "fogcat5@gmail.com"
     }
@@ -99,7 +100,7 @@ async def test_backup_now_success(tmp_path):
 
     with patch("scripts.config.BACKUP_DB_PATH", test_db_path):
         async for db in get_db():
-            await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+            # await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
             await db.commit()
 
     backup_path = tmp_path / "backup-2025-05-07.sqlite3"

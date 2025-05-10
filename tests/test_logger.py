@@ -109,7 +109,7 @@ async def test_unauthorized_page():
 
 
 @pytest.mark.asyncio
-@patch("scripts.logger.get_db")
+@patch("scripts.db.get_db")
 @patch("scripts.logger.storage.Client")
 async def test_get_photos_route_runs(mock_client, mock_get_db, tmp_path):
     db_path = tmp_path / "metadata.db"
