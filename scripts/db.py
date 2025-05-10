@@ -2,8 +2,10 @@ import aiosqlite
 
 from scripts.config import BACKUP_DB_PATH
 from scripts.util import utc_now_iso
+from pathlib import Path
+import aiosqlite
 
-DB_PATH = "uploads/metadata.db"
+DB_PATH = Path("uploads/metadata.db")
 
 
 async def init_db(schema_path="scripts/schema.sql"):
