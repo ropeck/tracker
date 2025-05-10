@@ -130,6 +130,7 @@ async def test_get_photos_route_runs(tmp_path):
 
     # Use FastAPI's override system
     async def override_get_db():
+        print(f"[override_get_db] Opening DB: {db_path}")
         async with aiosqlite.connect(db_path) as db:
             yield db
 

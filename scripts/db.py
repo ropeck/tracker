@@ -49,5 +49,6 @@ async def link_image_tag(filename, tag_name):
 
 
 async def get_db():
+    print(f"[REAL get_db] Using: {BACKUP_DB_PATH}")
     async with aiosqlite.connect(BACKUP_DB_PATH) as db:
         yield db
