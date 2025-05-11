@@ -90,6 +90,16 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     assert mock_link.call_count == 2  # One for each tag
 
 
+def test_should_rebuild_db_with_force_env():
+    for flag in ("", "0", "false", "no", "off"):
+        os.environ["FORCE_REBUILD"] = flag
+        assert should_rebuild_db() is False
+    for flag in ("1", "true", "yes"):
+        os.environ["FORCE_REBUILD"] = flag
+        assert should_rebuild_db() is True
+    os.environ.pop("FORCE_REBUILD")
+
+
 def test_should_rebuild_db_with_force():
     assert should_rebuild_db(force=True) is True
 

@@ -30,7 +30,7 @@ def should_rebuild_db(force: bool = False) -> bool:
     force_env = os.environ.get("FORCE_REBUILD", "")
     env_forced = force_env.strip().lower() not in ("", "0", "false", "no", "off")
 
-    if force_env or force:
+    if env_forced or force:
         logger.info("🔄 Forcing DB rebuild from GCS.")
         return True
 
@@ -132,7 +132,6 @@ async def restore_db_from_gcs_snapshot(
 
         sqlite_blobs.sort(key=extract_date, reverse=True)
         latest_blob = sqlite_blobs[0]
-        snapshot_ts = extract_date(latest_blob)
 
         logging.info(f"📦 Restoring DB snapshot: {latest_blob.name}")
 

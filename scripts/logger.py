@@ -75,7 +75,6 @@ from google.auth import jwt
 from google.cloud import storage
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.requests import Request
 
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
