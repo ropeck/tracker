@@ -211,12 +211,10 @@ async def health_check():
 
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
-...
 
 
 async def process_image(upload_info):
-    """
-    Process an uploaded image file:
+    """Process an uploaded image file:
     - Generates a summary using OpenAI Vision
     - Saves the summary and thumbnail
     - Uploads both to GCS
@@ -277,8 +275,7 @@ async def manual_rebuild(
     user: dict = Depends(get_current_user),
     force: str = Query(default="false"),
 ):
-    """
-    Manually trigger a DB rebuild from GCS, optionally forcing it.
+    """Manually trigger a DB rebuild from GCS, optionally forcing it.
     Requires user authentication.
     """
     if not user:
@@ -294,8 +291,7 @@ async def manual_rebuild(
 
 @app.get("/uploads/{path:path}")
 async def gcs_proxy(path: str, request: Request):
-    """
-    Proxy GCS file access via FastAPI endpoint.
+    """Proxy GCS file access via FastAPI endpoint.
     Streams file if it exists, or returns a 404.
     """
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
@@ -342,8 +338,7 @@ async def gcs_proxy(path: str, request: Request):
 
 
 def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
-    """
-    Uploads a file-like object to the specified GCS path.
+    """Uploads a file-like object to the specified GCS path.
     """
     client = storage.Client.from_service_account_json("/app/service-account-key.json")
     bucket = client.bucket(bucket_name)
@@ -355,8 +350,7 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    """
-    Render the home page with the file upload form.
+    """Render the home page with the file upload form.
     """
     return templates.TemplateResponse(request, "index.html")
 
@@ -521,8 +515,7 @@ async def search_photos(request: Request, q: str = ""):
 async def search_by_prompt(
     request: Request, db: aiosqlite.Connection = Depends(get_db)
 ):
-    """
-    Search photos using a free-form prompt interpreted by the AI model.
+    """Search photos using a free-form prompt interpreted by the AI model.
 
     Args:
         request: The FastAPI request object.
@@ -585,8 +578,7 @@ async def trigger_backup(
     user: dict = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
 ):
-    """
-    Trigger a backup of the current metadata DB to GCS.
+    """Trigger a backup of the current metadata DB to GCS.
 
     Authorization is enforced via OAuth2 user or Kubernetes service account.
 
@@ -643,8 +635,7 @@ async def trigger_backup(
 
 
 async def perform_backup():
-    """
-    Perform a snapshot backup of the SQLite DB to a local file and upload to GCS.
+    """Perform a snapshot backup of the SQLite DB to a local file and upload to GCS.
 
     Returns:
         JSON result containing the backup status and path.
@@ -674,4 +665,30 @@ async def perform_backup():
         gcs_path = f"db-backups/{backup_filename}"
         upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
 
-    loggi
+
+async def cleanup_old_backups():
+    """Delete local backup files that exceed the retention policy.
+    Keeps the most recent N backups or those newer than the max age.
+    """
+    backups = sorted(
+        DB_BACKUP_DIR.glob("backup-*.sqlite3"),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+    if len(backups) <= MIN_BACKUPS:
+        return
+
+    now = datetime.now(timezone.utc).timestamp()
+    cutoff = now - (MAX_BACKUP_AGE_DAYS * 86400)
+    kept = 0
+
+    for path in backups:
+        if kept < MIN_BACKUPS:
+            kept += 1
+            continue
+        if os.path.getmtime(path) < cutoff:
+            logging.info(f"🧹 Removing old backup: {path}")
+            try:
+                path.unlink()
+            except Exception as e:
+                logging.warning(f"Could not delete {path}: {e}")

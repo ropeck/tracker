@@ -1,5 +1,4 @@
-"""
-Configuration constants for database backup paths.
+"""Configuration constants for database backup paths.
 
 Defines the location for database backup files used by the inventory app.
 Ensures the backup directory exists on startup.

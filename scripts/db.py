@@ -1,11 +1,11 @@
-"""
-Database access and helper functions for image and tag management.
+"""Database access and helper functions for image and tag management.
 
 Handles initialization and interaction with the local SQLite database
 for storing image metadata, tags, and associations.
 """
 
 from pathlib import Path
+
 import aiosqlite
 
 from scripts.config import BACKUP_DB_PATH
@@ -15,8 +15,7 @@ DB_PATH = Path("uploads/metadata.db")
 
 
 async def init_db(schema_path="scripts/schema.sql"):
-    """
-    Initialize the SQLite database using the provided schema file.
+    """Initialize the SQLite database using the provided schema file.
 
     Args:
         schema_path (str): Path to the SQL schema file to execute.
@@ -28,8 +27,7 @@ async def init_db(schema_path="scripts/schema.sql"):
 
 
 async def add_image(filename, label, timestamp):
-    """
-    Insert an image record into the database if it doesn't already exist.
+    """Insert an image record into the database if it doesn't already exist.
 
     Args:
         filename (str): Name of the uploaded file.
@@ -45,8 +43,7 @@ async def add_image(filename, label, timestamp):
 
 
 async def add_tag(name):
-    """
-    Add a tag to the tags table if it doesn't already exist.
+    """Add a tag to the tags table if it doesn't already exist.
 
     Args:
         name (str): Tag name to insert.
@@ -57,8 +54,7 @@ async def add_tag(name):
 
 
 async def link_image_tag(filename, tag_name):
-    """
-    Associate a tag with an image using their existing database IDs.
+    """Associate a tag with an image using their existing database IDs.
 
     Args:
         filename (str): Filename of the image to tag.
@@ -84,8 +80,7 @@ async def link_image_tag(filename, tag_name):
 
 
 async def get_db():
-    """
-    Yield a database connection using the backup DB path.
+    """Yield a database connection using the backup DB path.
 
     Used as a FastAPI dependency for injecting database access.
 
