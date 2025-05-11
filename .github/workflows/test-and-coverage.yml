@@ -30,7 +30,7 @@ jobs:
 
       - name: 🔤 Spell check (codespell)
         run: |
-          codespell . --skip=".venv,*.db,*.jpg,*.png,*.sqlite3" --ignore-words-list="nd"
+          codespell . --skip="htmlcov,venv,.venv,*.db,*.jpg,*.png,*.sqlite3" --ignore-words-list="nd"
 
       - name: 🧼 Pylint
         run: |

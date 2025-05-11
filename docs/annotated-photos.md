@@ -26,7 +26,7 @@ Annotated photos (with AI object recognition overlays and scoring) provide an in
 
 ## API Integration Plan
 
-- Add `/annotated/` endpoint to serve overlayed versions of photos
+- Add `/annotated/` endpoint to serve overlaid versions of photos
 - Link this view to each photo’s metadata and object database
 - Optional: render dynamic overlays server-side or with canvas
 
