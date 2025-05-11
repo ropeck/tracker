@@ -1,5 +1,4 @@
 import os
-import shutil
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -76,9 +75,10 @@ async def test_search_query_logic(tmp_path):
 
     real_connect = aiosqlite.connect
 
-    with patch("scripts.logger.UPLOAD_DIR", tmp_path), patch(
-        "scripts.logger.aiosqlite.connect"
-    ) as mock_connect:
+    with (
+        patch("scripts.logger.UPLOAD_DIR", tmp_path),
+        patch("scripts.logger.aiosqlite.connect") as mock_connect,
+    ):
         mock_connect.side_effect = lambda path, *a, **kw: real_connect(
             db_path, *a, **kw
         )
@@ -98,7 +98,7 @@ async def test_cleanup_old_backups(tmp_path):
     os.utime(old_file, (old_time.timestamp(), old_time.timestamp()))
 
     for i in range(15):
-        path = tmp_path / f"backup-2025-05-{i+1:02d}.sqlite3"
+        path = tmp_path / f"backup-2025-05-{i + 1:02d}.sqlite3"
         path.write_text("ok")
 
     logger.DB_BACKUP_DIR = tmp_path

@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from scripts import logger_nfc
 
 
@@ -40,10 +39,6 @@ def test_log_tag_appends_multiple_entries(tmp_path, monkeypatch):
 
 def test_read_tag_is_placeholder():
     assert logger_nfc.read_tag() is None
-
-
-import itertools
-from unittest.mock import patch
 
 
 def test_run_logs_tag_once(monkeypatch, tmp_path):

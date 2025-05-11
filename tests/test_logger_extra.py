@@ -8,7 +8,6 @@ from httpx import ASGITransport, AsyncClient
 
 from scripts import db as db_module
 from scripts import logger
-from scripts.config import BACKUP_DB_PATH
 from scripts.db import get_db
 from scripts.db import get_db as logger_get_db
 from scripts.logger import get_current_user
@@ -58,10 +57,6 @@ async def test_gcs_proxy_not_found(mock_os, mock_client):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get("/uploads/missing.jpg")
         assert res.status_code == 404
-
-
-from scripts import db as db_module
-from scripts.db import get_db as logger_get_db
 
 
 def override_get_db(db_path):

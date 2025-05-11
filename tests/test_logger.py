@@ -1,15 +1,11 @@
-import asyncio
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiosqlite
 import pytest
-from fastapi import UploadFile
 from httpx import ASGITransport, AsyncClient
 
 from scripts import logger
-from scripts.db import get_db
 
 
 @pytest.fixture

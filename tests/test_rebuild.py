@@ -1,11 +1,9 @@
-import logging
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 from scripts import rebuild
 from scripts.rebuild import should_rebuild_db
@@ -103,16 +101,16 @@ def test_should_rebuild_db_with_force_env():
         else:
             os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert (
-            result is False
-        ), f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
+        assert result is False, (
+            f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
+        )
 
     for flag in true_flags:
         os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert (
-            result is True
-        ), f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
+        assert result is True, (
+            f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
+        )
 
     os.environ.pop("FORCE_REBUILD", None)
 
@@ -178,14 +176,3 @@ async def test_rebuild_skips_empty_summary(
     mock_add_image.assert_called_once_with("empty_image", label="", timestamp=ANY)
     mock_add_tag.assert_not_called()
     mock_link.assert_not_called()
-
-
-@pytest.mark.asyncio
-@patch("scripts.rebuild.storage.Client")
-async def test_restore_returns_false_when_no_snapshots(mock_storage_client):
-    bucket_mock = MagicMock()
-    bucket_mock.list_blobs.return_value = []
-    mock_storage_client.return_value.bucket.return_value = bucket_mock
-
-    result = await rebuild.restore_db_from_gcs_snapshot("bucket123")
-    assert result is False

@@ -1,7 +1,6 @@
-from datetime import datetime, UTC
-import re
+from datetime import UTC, datetime
 
-from scripts.util import utc_now_iso, parse_utc_timestamp, clean_tag_name
+from scripts.util import clean_tag_name, parse_utc_timestamp, utc_now_iso
 
 
 def test_utc_now_iso_format():

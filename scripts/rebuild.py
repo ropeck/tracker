@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 
 import aiosqlite
 from google.cloud import storage
@@ -36,7 +37,7 @@ def should_rebuild_db(force: bool = False) -> bool:
     if env_forced or force:
         logger.info("🔄 Forcing DB rebuild from GCS.")
         return True
-    return False
+    return not Path(DB_PATH).exists()
 
 
 async def rebuild_db_from_gcs(

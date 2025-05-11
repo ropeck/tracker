@@ -1,18 +1,19 @@
 # Makefile for Home Inventory Tracker
 
 APP_NAME := home-app
-IMAGE := fogcat5/$(APP_NAME)
-TAG := latest
 DEPLOYMENT := $(APP_NAME)
+IMAGE := fogcat5/$(APP_NAME)
 NAMESPACE := default
-VENV = venv
-PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
+PYTHON = $(VENV)/bin/python
+SRC_DIR := scripts
+TAG := latest
+VENV = venv
 
 .PHONY: all build push deploy logs shell test coverage open-coverage clean
 
-all: build push deploy
+all: spell lint format test build
 
 dev: $(VENV)/bin/activate
 
@@ -55,11 +56,26 @@ tag:
 	docker push $(IMAGE):$$version
 
 # 🧪 Tests
-test:
-	$(PYTEST) -v
 
 coverage:
 	$(PYTEST) --cov=scripts --cov-report=term-missing --cov-report=html
 
 open-coverage:
 	xdg-open htmlcov/index.ht
+
+# Run tests with coverage
+test:
+	pytest --cov=$(SRC_DIR) --cov-report=term-missing --cov-fail-under=85
+
+# Run pylint (warnings only)
+lint:
+	pylint $(SRC_DIR) --fail-under=8.5 || true
+
+# Check spelling (ignoring common noise)
+spell:
+	codespell . --skip="venv,htmlcov,.venv,*.db,*.jpg,*.png,*.sqlite3" --ignore-words-list="nd"
+
+# Run Ruff lint + formatter
+format:
+	ruff check $(SRC_DIR)
+	ruff format $(SRC_DIR)
