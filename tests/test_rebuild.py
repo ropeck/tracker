@@ -92,14 +92,29 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
 
 
 def test_should_rebuild_db_with_force_env():
-    for flag in ("", "0", "false", "no", "off"):
+    os.environ.pop("FORCE_REBUILD", None)  # Clean slate
+
+    false_flags = ("", "0", "false", "no", "off")
+    true_flags = ("1", "true", "yes")
+
+    for flag in false_flags:
+        if flag == "":
+            os.environ.pop("FORCE_REBUILD", None)  # Simulate unset
+        else:
+            os.environ["FORCE_REBUILD"] = flag
+        result = should_rebuild_db()
+        assert (
+            result is False
+        ), f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
+
+    for flag in true_flags:
         os.environ["FORCE_REBUILD"] = flag
-        assert should_rebuild_db() is False, f"Expected False for FORCE_REBUILD={flag}"
-    for flag in ("1", "true", "yes"):
-        os.environ["FORCE_REBUILD"] = flag
-        logging.info(f"FORCE_REBUILD = {flag}")
-        assert should_rebuild_db() is True, f"Expected True for FORCE_REBUILD={flag}"
-    os.environ.pop("FORCE_REBUILD")
+        result = should_rebuild_db()
+        assert (
+            result is True
+        ), f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
+
+    os.environ.pop("FORCE_REBUILD", None)
 
 
 def test_should_rebuild_db_with_force():
