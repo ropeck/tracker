@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -93,10 +94,11 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
 def test_should_rebuild_db_with_force_env():
     for flag in ("", "0", "false", "no", "off"):
         os.environ["FORCE_REBUILD"] = flag
-        assert should_rebuild_db() is False
+        assert should_rebuild_db() is False, f"Expected False for FORCE_REBUILD={flag}"
     for flag in ("1", "true", "yes"):
         os.environ["FORCE_REBUILD"] = flag
-        assert should_rebuild_db() is True
+        logging.info(f"FORCE_REBUILD = {flag}")
+        assert should_rebuild_db() is True, f"Expected True for FORCE_REBUILD={flag}"
     os.environ.pop("FORCE_REBUILD")
 
 
