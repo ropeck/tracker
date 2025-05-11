@@ -89,7 +89,7 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     assert mock_link.call_count == 2  # One for each tag
 
 
-def test_should_rebuild_db_with_force_env():
+def test_should_rebuild_db_with_force_env(tmp_path, monkeypatch):
     dummy_db = tmp_path / "metadata.db"
     dummy_db.touch()
     monkeypatch.setattr("scripts.rebuild.DB_PATH", dummy_db)
