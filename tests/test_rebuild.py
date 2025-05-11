@@ -90,6 +90,9 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
 
 
 def test_should_rebuild_db_with_force_env():
+    dummy_db = tmp_path / "metadata.db"
+    dummy_db.touch()
+    monkeypatch.setattr("scripts.rebuild.DB_PATH", dummy_db)
     os.environ.pop("FORCE_REBUILD", None)  # Clean slate
 
     false_flags = ("", "0", "false", "no", "off")
@@ -101,16 +104,16 @@ def test_should_rebuild_db_with_force_env():
         else:
             os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert result is False, (
-            f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
-        )
+        assert (
+            result is False
+        ), f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
 
     for flag in true_flags:
         os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert result is True, (
-            f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
-        )
+        assert (
+            result is True
+        ), f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
 
     os.environ.pop("FORCE_REBUILD", None)
 
