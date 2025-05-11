@@ -32,10 +32,6 @@ jobs:
         run: |
           codespell . --skip="htmlcov,venv,.venv,*.db,*.jpg,*.png,*.sqlite3" --ignore-words-list="nd"
 
-      - name: 🧼 Pylint
-        run: |
-          pylint scripts --fail-under=8.5
-
       - name: 🔐 Bandit (security scanner)
         run: |
           bandit -r scripts -x tests
@@ -43,6 +39,10 @@ jobs:
       - name: ⚡ Ruff (fast linting)
         run: |
           ruff check scripts
+
+      - name: 🧼 Pylint
+        run: |
+          pylint scripts --fail-under=8.5
 
       - name: ✅ Success
         if: success()

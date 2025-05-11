@@ -1,8 +1,8 @@
 """This module handles uploading images and sending them to OpenAI's GPT-4
 Vision API.
 
-It encodes images in base64, sends them to the model, and extracts object tags
-to support image-based inventory search in the application.
+It encodes images in base64, sends them to the model, and extracts
+object tags to support image-based inventory search in the application.
 """
 
 import base64
