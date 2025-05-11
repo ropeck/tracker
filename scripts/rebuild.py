@@ -27,18 +27,16 @@ def should_rebuild_db(force: bool = False) -> bool:
         bool: True if a rebuild should be performed, False otherwise.
     """
 
-    force_env = os.environ.get("FORCE_REBUILD", "")
-    env_forced = force_env.strip().lower() not in ("", "0", "false", "no", "off")
+    if "FORCE_REBUILD" in os.environ:
+        force_env = os.environ["FORCE_REBUILD"]
+        env_forced = force_env.strip().lower() not in ("", "0", "false", "no", "off")
+    else:
+        env_forced = False
 
     if env_forced or force:
         logger.info("🔄 Forcing DB rebuild from GCS.")
         return True
-
-    if os.path.exists(DB_PATH):
-        logger.info("📦 DB already exists, skipping rebuild from GCS.")
-        return False
-
-    return True
+    return False
 
 
 async def rebuild_db_from_gcs(
