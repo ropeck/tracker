@@ -5,6 +5,10 @@
 ![Tests](https://github.com/fogcat5/home-app/actions/workflows/test-and-coverage.yml/badge.svg)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Private-lightgrey)]()
+[![CI – Tests & Coverage](https://github.com/ropeck/tracker/actions/workflows/test-and-coverage.yml/badge.svg)](https://github.com/ropeck/tracker/actions/workflows/test-and-coverage.yml)
+[![Code Style – Ruff](https://img.shields.io/badge/style-ruff-blue)](https://github.com/astral-sh/ruff)
+[![Security – Bandit](https://img.shields.io/badge/security-bandit-yellow)](https://bandit.readthedocs.io/)
+[![Spellcheck – Codespell](https://img.shields.io/badge/spellcheck-codespell-green)](https://github.com/codespell-project/codespell)
 
 Simple. Organized. Searchable. Your real-world objects, finally remembered.
 

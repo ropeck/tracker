@@ -22,14 +22,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-cov
+          pip install codespell pylint bandit ruff
 
       - name: 🧪 Run tests with coverage
         run: |
           pytest --cov=scripts --cov-report=html --cov-report=term-missing --cov-fail-under=85
 
+      - name: 🔤 Spell check (codespell)
+        run: |
+          codespell . --skip=".venv,*.db,*.jpg,*.png,*.sqlite3" --ignore-words-list="nd"
+
+      - name: 🧼 Pylint
+        run: |
+          pylint scripts --fail-under=8.5
+
+      - name: 🔐 Bandit (security scanner)
+        run: |
+          bandit -r scripts -x tests
+
+      - name: ⚡ Ruff (fast linting)
+        run: |
+          ruff check scripts
+
       - name: ✅ Success
         if: success()
-        run: echo "✅ Tests and coverage passed"
+        run: echo "✅ All checks passed"
 
       - name: 📂 Upload HTML coverage report
         uses: actions/upload-artifact@v4
