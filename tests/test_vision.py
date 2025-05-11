@@ -3,12 +3,13 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 from scripts import vision
 from scripts.vision import get_async_client
 
 
-def test_encode_image_to_base64(tmp_path):
+def test_encode_image_to_base64(tmp_path: str) -> None:
     # Create a fake image file
     fake_img = tmp_path / "test.jpg"
     fake_img.write_bytes(b"fake image data")
@@ -22,7 +23,7 @@ def test_encode_image_to_base64(tmp_path):
 
 
 @patch("scripts.vision.AsyncOpenAI")
-def test_get_async_client_uses_env_key(mock_openai):
+def test_get_async_client_uses_env_key(mock_openai: MagicMock) -> None:
     os.environ["OPENAI_API_KEY"] = "test-key-123"
 
     client = get_async_client()
@@ -36,7 +37,9 @@ def test_get_async_client_uses_env_key(mock_openai):
 @patch(
     "scripts.vision.encode_image_to_base64", return_value="base64-image-data"
 )
-def test_analyze_image_with_openai(mock_encode, mock_openai, mock_client):
+def test_analyze_image_with_openai(mock_encode: MagicMock,
+                                   mock_openai: MagicMock,
+                                   mock_client:MagicMock) -> None:
     mock_response = MagicMock()
     mock_response.choices = [
         MagicMock(message=MagicMock(content="example: tag1, tag2"))
@@ -54,7 +57,7 @@ def test_analyze_image_with_openai(mock_encode, mock_openai, mock_client):
 
 @pytest.mark.asyncio
 @patch("scripts.vision.get_async_client")
-async def test_call_openai_chat_success(mock_get_client):
+async def test_call_openai_chat_success(mock_get_client: MagicMock) -> None:
     # Setup mock client and mock .create call
     mock_create = AsyncMock()
     mock_create.return_value.choices = [
@@ -77,7 +80,8 @@ async def test_call_openai_chat_success(mock_get_client):
 
 @pytest.mark.asyncio
 @patch("scripts.vision.get_async_client")
-async def test_call_openai_chat_error(mock_get_client, caplog):
+async def test_call_openai_chat_error(mock_get_client: MagicMock,
+                                      caplog:LogCaptureFixture) -> None:
     # Mock the client to raise an exception
     mock_client = MagicMock()
     mock_client.chat.completions.create = AsyncMock(

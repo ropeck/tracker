@@ -14,7 +14,7 @@ def app():
 
 
 @pytest.mark.asyncio
-async def test_healthz_ok(tmp_path):
+async def test_healthz_ok(tmp_path) -> None:
     db_path = tmp_path / "metadata.db"
     db_path.write_text("")  # touch file
     logger.BACKUP_DB_PATH = db_path
@@ -38,7 +38,7 @@ async def test_healthz_ok(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_root_returns_template():
+async def test_root_returns_template() -> None:
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
         transport=transport, base_url="http://test"
@@ -63,7 +63,7 @@ async def test_process_image_success(
     mock_upload,
     mock_open,
     tmp_path,
-):
+) -> None:
     file_path = tmp_path / "test_image.jpg"
     file_path.write_bytes(b"\xff\xd8\xff")  # Minimal JPEG header
     thumb_path = file_path.parent / "test_image.jpg.thumb.jpg"
@@ -76,7 +76,7 @@ async def test_process_image_success(
     assert mock_add.called
 
 
-def test_upload_file_to_gcs_mocked(tmp_path):
+def test_upload_file_to_gcs_mocked(tmp_path) -> None:
     f = tmp_path / "mock.txt"
     f.write_text("dummy")
     with f.open("rb") as fh:
@@ -93,14 +93,14 @@ def test_upload_file_to_gcs_mocked(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_trigger_backup_no_db():
+async def test_trigger_backup_no_db() -> None:
     with patch("scripts.logger.BACKUP_DB_PATH", Path("nonexistent.db")):
         with pytest.raises(Exception):
             await logger.perform_backup()
 
 
 @pytest.mark.asyncio
-async def test_unauthorized_page():
+async def test_unauthorized_page() -> None:
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
         transport=transport, base_url="http://test"
@@ -111,11 +111,10 @@ async def test_unauthorized_page():
 
 
 @pytest.mark.asyncio
-async def test_get_photos_route_runs(tmp_path):
+async def test_get_photos_route_runs(tmp_path) -> None:
     db_path = tmp_path / "test.db"
 
     async def override_get_db():
-        print(f"[override_get_db] Using test DB at: {db_path}")
         async with aiosqlite.connect(db_path) as db:
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"

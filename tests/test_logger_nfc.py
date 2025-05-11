@@ -1,9 +1,11 @@
+import contextlib
 import json
+from typing import NoReturn
 
 from scripts import logger_nfc
 
 
-def test_log_tag_creates_entry(tmp_path, monkeypatch):
+def test_log_tag_creates_entry(tmp_path, monkeypatch) -> None:
     log_path = tmp_path / "log.json"
 
     # Patch the module-level LOG_PATH
@@ -21,7 +23,7 @@ def test_log_tag_creates_entry(tmp_path, monkeypatch):
     assert "timestamp" in entry
 
 
-def test_log_tag_appends_multiple_entries(tmp_path, monkeypatch):
+def test_log_tag_appends_multiple_entries(tmp_path, monkeypatch) -> None:
     log_path = tmp_path / "log.json"
     monkeypatch.setattr(logger_nfc, "LOG_PATH", log_path)
 
@@ -38,26 +40,24 @@ def test_log_tag_appends_multiple_entries(tmp_path, monkeypatch):
     assert entry2["location"] == "desk"
 
 
-def test_read_tag_is_placeholder():
+def test_read_tag_is_placeholder() -> None:
     assert logger_nfc.read_tag() is None
 
 
-def test_run_logs_tag_once(monkeypatch, tmp_path):
+def test_run_logs_tag_once(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(logger_nfc, "LOG_PATH", tmp_path / "log.json")
     monkeypatch.setattr(logger_nfc, "read_tag", lambda: "abc123")
 
     # Patch log_tag to only run once then break
     calls = []
 
-    def fake_log_tag(tag_id, location="unknown"):
+    def fake_log_tag(tag_id, location="unknown") -> NoReturn:
         calls.append(tag_id)
         raise KeyboardInterrupt  # simulate stopping the loop
 
     monkeypatch.setattr(logger_nfc, "log_tag", fake_log_tag)
 
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         logger_nfc.run()
-    except KeyboardInterrupt:
-        pass
 
     assert calls == ["abc123"]

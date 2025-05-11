@@ -21,7 +21,7 @@ def app_with_session():
 
 @pytest.mark.asyncio
 @patch("scripts.auth.oauth.google.authorize_redirect", new_callable=AsyncMock)
-async def test_login_redirect(mock_redirect, app_with_session):
+async def test_login_redirect(mock_redirect, app_with_session) -> None:
     from httpx import ASGITransport, AsyncClient
 
     # ✅ Fix: return a real response object
@@ -33,7 +33,7 @@ async def test_login_redirect(mock_redirect, app_with_session):
     ) as client:
         response = await client.get("/login")
 
-    assert response.status_code == 307 or response.status_code == 302
+    assert response.status_code in {307, 302}
     assert response.headers["location"] == "/auth"
     mock_redirect.assert_awaited_once()
 
@@ -43,7 +43,7 @@ async def test_login_redirect(mock_redirect, app_with_session):
     "scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock
 )
 @patch("scripts.auth.oauth.google.userinfo", new_callable=AsyncMock)
-async def test_auth_success(mock_userinfo, mock_token, app_with_session):
+async def test_auth_success(mock_userinfo, mock_token, app_with_session) -> None:
     mock_token.return_value = {
         "access_token": "abc123",
         "userinfo": {"email": ALLOWED_USER},
@@ -65,7 +65,7 @@ async def test_auth_success(mock_userinfo, mock_token, app_with_session):
 @patch("scripts.auth.oauth.google.userinfo", new_callable=AsyncMock)
 async def test_auth_rejects_invalid_user(
     mock_userinfo, mock_token, app_with_session
-):
+) -> None:
     mock_token.return_value = {"userinfo": {"email": "not@allowed.com"}}
     mock_userinfo.return_value = {"email": "not@allowed.com"}
 
@@ -77,7 +77,7 @@ async def test_auth_rejects_invalid_user(
     await client.aclose()
 
 
-def test_logout_clears_session(app_with_session):
+def test_logout_clears_session(app_with_session) -> None:
     with TestClient(app_with_session) as client:
         client.cookies.set("session", "mock")
         res = client.get("/logout", follow_redirects=False)
@@ -85,14 +85,14 @@ def test_logout_clears_session(app_with_session):
         assert res.headers["location"] == "/"
 
 
-def test_get_current_user_with_nologin(monkeypatch):
+def test_get_current_user_with_nologin(monkeypatch) -> None:
     monkeypatch.setenv("NOLOGIN", "1")
     request = MagicMock()
     result = get_current_user(request)
     assert result["email"] == ALLOWED_USER
 
 
-def test_get_current_user_with_session():
+def test_get_current_user_with_session() -> None:
     request = MagicMock()
     request.session = {"user": {"email": "fogcat5@gmail.com"}}
     result = get_current_user(request)
