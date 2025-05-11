@@ -19,7 +19,9 @@ async def test_rebuild_route():
         "email": "fogcat5@gmail.com"
     }
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         with patch(
             "scripts.logger.rebuild_db_from_gcs", new_callable=AsyncMock
         ) as mock_rebuild:
@@ -39,7 +41,9 @@ async def test_gcs_proxy_file_found(mock_client, mock_exists):
     mock_client.return_value.bucket.return_value.blob.return_value = blob
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/test.jpg")
         assert res.status_code == 200
 
@@ -54,7 +58,9 @@ async def test_gcs_proxy_not_found(mock_os, mock_client):
     mock_client.return_value.bucket.return_value.blob.return_value = blob
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/missing.jpg")
         assert res.status_code == 404
 
@@ -98,7 +104,9 @@ async def test_search_query_response(mock_call, tmp_path):
     mock_call.return_value = json.dumps(["usb", "audio"])
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.post(
             "/search/query", data={"prompt": "Where are my USB cables?"}
         )
@@ -124,8 +132,12 @@ async def test_backup_now_success(mock_upload, tmp_path):
     backup_path.write_text("different_content")
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        with patch("scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"):
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        with patch(
+            "scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"
+        ):
             res = await client.get("/backup-now")
             assert res.status_code == 200
             assert mock_upload.called

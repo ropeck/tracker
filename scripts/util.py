@@ -12,8 +12,7 @@ def parse_utc_timestamp(ts: str) -> datetime:
 
 
 def clean_tag_name(tag: str) -> str:
-    """
-    Normalize a tag by:
+    """Normalize a tag by:
     - Lowercasing
     - Stripping whitespace
     - Removing surrounding quotes or commas

@@ -33,7 +33,9 @@ def test_get_async_client_uses_env_key(mock_openai):
 
 @patch("scripts.vision.get_async_client")
 @patch("scripts.vision.OpenAI")
-@patch("scripts.vision.encode_image_to_base64", return_value="base64-image-data")
+@patch(
+    "scripts.vision.encode_image_to_base64", return_value="base64-image-data"
+)
 def test_analyze_image_with_openai(mock_encode, mock_openai, mock_client):
     mock_response = MagicMock()
     mock_response.choices = [
@@ -64,7 +66,9 @@ async def test_call_openai_chat_success(mock_get_client):
     mock_get_client.return_value = mock_client
 
     # Call the function
-    response = await vision.call_openai_chat("find usb cables", "list tags only")
+    response = await vision.call_openai_chat(
+        "find usb cables", "list tags only"
+    )
 
     # Validate result
     assert "usb" in response
@@ -76,7 +80,9 @@ async def test_call_openai_chat_success(mock_get_client):
 async def test_call_openai_chat_error(mock_get_client, caplog):
     # Mock the client to raise an exception
     mock_client = MagicMock()
-    mock_client.chat.completions.create = AsyncMock(side_effect=Exception("API fail"))
+    mock_client.chat.completions.create = AsyncMock(
+        side_effect=Exception("API fail")
+    )
     mock_get_client.return_value = mock_client
 
     # Trigger the failure

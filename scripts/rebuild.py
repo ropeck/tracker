@@ -15,8 +15,7 @@ logger.setLevel(logging.INFO)
 
 
 def should_rebuild_db(force: bool = False) -> bool:
-    """
-    Determines whether the local DB should be rebuilt from GCS.
+    """Determines whether the local DB should be rebuilt from GCS.
 
     This function checks:
     - The `force` argument passed explicitly to override all checks
@@ -27,10 +26,15 @@ def should_rebuild_db(force: bool = False) -> bool:
     Returns:
         bool: True if a rebuild should be performed, False otherwise.
     """
-
     if "FORCE_REBUILD" in os.environ:
         force_env = os.environ["FORCE_REBUILD"]
-        env_forced = force_env.strip().lower() not in ("", "0", "false", "no", "off")
+        env_forced = force_env.strip().lower() not in (
+            "",
+            "0",
+            "false",
+            "no",
+            "off",
+        )
     else:
         env_forced = False
 
@@ -46,8 +50,7 @@ async def rebuild_db_from_gcs(
     force: bool = False,
     since_timestamp: str | None = None,
 ) -> None:
-    """
-    Rebuilds the local image/tag database from summary files stored in GCS.
+    """Rebuilds the local image/tag database from summary files stored in GCS.
 
     Args:
         bucket_name (str): The name of the Google Cloud Storage bucket.
@@ -55,9 +58,8 @@ async def rebuild_db_from_gcs(
         force (bool, optional): If True, forces a rebuild even if the DB exists.
         since_timestamp (str, optional): ISO timestamp; only process files newer than this.
     """
-
     if not since_timestamp and not should_rebuild_db(force):
-        return None
+        return
 
     logger.info("🔁 Starting rebuild from GCS...")
 
@@ -76,7 +78,9 @@ async def rebuild_db_from_gcs(
             try:
                 cutoff_dt = parse_utc_timestamp(since_timestamp)
 
-                blobs = [b for b in blobs if b.updated.astimezone(UTC) > cutoff_dt]
+                blobs = [
+                    b for b in blobs if b.updated.astimezone(UTC) > cutoff_dt
+                ]
                 logging.info(
                     f"🔍 Filtered to {len(blobs)} summary files after {since_timestamp}"
                 )
@@ -105,8 +109,8 @@ async def rebuild_db_from_gcs(
 async def restore_db_from_gcs_snapshot(
     bucket_name: str, snapshot_prefix: str = "db-backups/"
 ) -> bool:
-    """
-    Restore the most recent .sqlite3 snapshot from GCS and apply any deltas via summary.txt.
+    """Restore the most recent .sqlite3 snapshot from GCS and apply any deltas
+    via summary.txt.
 
     Returns:
         Timestamp of most recent GCS backup or False if no snapshots found.

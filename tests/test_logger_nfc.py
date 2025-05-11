@@ -1,4 +1,5 @@
 import json
+
 from scripts import logger_nfc
 
 

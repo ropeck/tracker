@@ -1,14 +1,15 @@
+from pathlib import Path
+
 import aiosqlite
 
 from scripts.config import BACKUP_DB_PATH
-from pathlib import Path
 
 DB_PATH = Path("uploads/metadata.db")
 
 
 async def init_db(schema_path="scripts/schema.sql"):
     async with aiosqlite.connect(DB_PATH) as db:
-        with open(schema_path, "r") as f:
+        with open(schema_path) as f:
             await db.executescript(f.read())
         await db.commit()
 
@@ -24,7 +25,9 @@ async def add_image(filename, label, timestamp):
 
 async def add_tag(name):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (name,))
+        await db.execute(
+            "INSERT OR IGNORE INTO tags (name) VALUES (?)", (name,)
+        )
         await db.commit()
 
 
@@ -37,7 +40,9 @@ async def link_image_tag(filename, tag_name):
         image = await cursor.fetchone()
 
         # Get tag id
-        cursor = await db.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+        cursor = await db.execute(
+            "SELECT id FROM tags WHERE name = ?", (tag_name,)
+        )
         tag = await cursor.fetchone()
 
         if image and tag:

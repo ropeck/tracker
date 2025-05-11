@@ -77,5 +77,6 @@ spell:
 
 # Run Ruff lint + formatter
 format:
+	docformatter --in-place --wrap-summaries 80 --wrap-descriptions 80 -r $(SRC_DIR) --exclude venv
 	ruff check $(SRC_DIR)
 	ruff format $(SRC_DIR)

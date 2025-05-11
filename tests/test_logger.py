@@ -29,7 +29,9 @@ async def test_healthz_ok(tmp_path):
         await db.commit()
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/healthz")
         assert res.status_code == 200
         assert res.json()["status"] == "ok"
@@ -38,7 +40,9 @@ async def test_healthz_ok(tmp_path):
 @pytest.mark.asyncio
 async def test_root_returns_template():
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/")
         assert res.status_code == 200
         assert "html" in res.headers["content-type"]
@@ -80,9 +84,7 @@ def test_upload_file_to_gcs_mocked(tmp_path):
             "scripts.logger.storage.Client.from_service_account_json"
         ) as mock_from_json:
             mock_blob = MagicMock()
-            mock_from_json.return_value.bucket.return_value.blob.return_value = (
-                mock_blob
-            )
+            mock_from_json.return_value.bucket.return_value.blob.return_value = mock_blob
 
             path = logger.upload_file_to_gcs("my-bucket", "dest.txt", fh)
 
@@ -100,7 +102,9 @@ async def test_trigger_backup_no_db():
 @pytest.mark.asyncio
 async def test_unauthorized_page():
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/unauthorized")
         assert res.status_code == 200
         assert "403" in res.text
@@ -133,7 +137,9 @@ async def test_get_photos_route_runs(tmp_path):
     logger.app.dependency_overrides[logger_get_db] = override_get_db
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/photos")
         assert res.status_code == 200
         assert "file1.jpg" in res.text

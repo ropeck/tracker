@@ -43,7 +43,9 @@ async def test_restore_db_uses_latest_snapshot(
     # Mock latest timestamp from DB
     db_conn = AsyncMock()
     mock_connect.return_value.__aenter__.return_value = db_conn
-    db_conn.execute.return_value.fetchone.return_value = ("2025-05-06T12:00:00+00:00",)
+    db_conn.execute.return_value.fetchone.return_value = (
+        "2025-05-06T12:00:00+00:00",
+    )
 
     result = await rebuild.restore_db_from_gcs_snapshot("my-bucket")
 
@@ -51,7 +53,8 @@ async def test_restore_db_uses_latest_snapshot(
     mock_blob2.download_to_filename.assert_called_once()
     mock_rebuild.assert_called_once()
     assert (
-        mock_rebuild.call_args.kwargs["since_timestamp"] == "2025-05-06T12:00:00+00:00"
+        mock_rebuild.call_args.kwargs["since_timestamp"]
+        == "2025-05-06T12:00:00+00:00"
     )
 
 
@@ -79,9 +82,13 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     bucket_mock.list_blobs.return_value = [old_blob, new_blob]
     mock_storage_client.return_value.bucket.return_value = bucket_mock
 
-    cutoff = (datetime.now(UTC) - timedelta(days=1)).isoformat(timespec="seconds")
+    cutoff = (datetime.now(UTC) - timedelta(days=1)).isoformat(
+        timespec="seconds"
+    )
 
-    await rebuild.rebuild_db_from_gcs("my-bucket", "upload", since_timestamp=cutoff)
+    await rebuild.rebuild_db_from_gcs(
+        "my-bucket", "upload", since_timestamp=cutoff
+    )
 
     mock_add_image.assert_called_once_with("new_image", label="", timestamp=ANY)
     mock_add_tag.assert_any_call("tag3")
@@ -104,16 +111,16 @@ def test_should_rebuild_db_with_force_env(tmp_path, monkeypatch):
         else:
             os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert (
-            result is False
-        ), f"Expected False for FORCE_REBUILD={repr(flag)}, got {result}"
+        assert result is False, (
+            f"Expected False for FORCE_REBUILD={flag!r}, got {result}"
+        )
 
     for flag in true_flags:
         os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert (
-            result is True
-        ), f"Expected True for FORCE_REBUILD={repr(flag)}, got {result}"
+        assert result is True, (
+            f"Expected True for FORCE_REBUILD={flag!r}, got {result}"
+        )
 
     os.environ.pop("FORCE_REBUILD", None)
 
@@ -168,14 +175,20 @@ async def test_rebuild_skips_empty_summary(
     empty_blob.download_as_text.return_value = ""
     nonexistent_path = tmp_path / "missing.db"
     monkeypatch.setattr("scripts.rebuild.DB_PATH", nonexistent_path)
-    await rebuild.rebuild_db_from_gcs("my-bucket", "upload", since_timestamp=None)
+    await rebuild.rebuild_db_from_gcs(
+        "my-bucket", "upload", since_timestamp=None
+    )
 
     bucket_mock = MagicMock()
     bucket_mock.list_blobs.return_value = [empty_blob]
     mock_storage_client.return_value.bucket.return_value = bucket_mock
 
-    await rebuild.rebuild_db_from_gcs("my-bucket", "upload", since_timestamp=None)
+    await rebuild.rebuild_db_from_gcs(
+        "my-bucket", "upload", since_timestamp=None
+    )
 
-    mock_add_image.assert_called_once_with("empty_image", label="", timestamp=ANY)
+    mock_add_image.assert_called_once_with(
+        "empty_image", label="", timestamp=ANY
+    )
     mock_add_tag.assert_not_called()
     mock_link.assert_not_called()

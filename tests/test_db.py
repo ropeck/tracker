@@ -38,7 +38,9 @@ async def test_add_and_link_image_tag(temp_db):
         assert image is not None
 
         # Confirm tag was added
-        cursor = await db.execute("SELECT * FROM tags WHERE name = ?", ("adorable",))
+        cursor = await db.execute(
+            "SELECT * FROM tags WHERE name = ?", ("adorable",)
+        )
         tag = await cursor.fetchone()
         assert tag is not None
 
@@ -57,12 +59,16 @@ async def test_ignore_duplicate_inserts(temp_db):
     await db_module.add_tag("sunny")  # Should be ignored
 
     async with aiosqlite.connect(temp_db) as db:
-        cursor = await db.execute("SELECT COUNT(*) FROM tags WHERE name = 'sunny'")
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM tags WHERE name = 'sunny'"
+        )
         count = await cursor.fetchone()
         assert count[0] == 1
 
     await db_module.add_image("beach.png", "Beach Day", "2025-05-07")
-    await db_module.add_image("beach.png", "Beach Day", "2025-05-07")  # Duplicate
+    await db_module.add_image(
+        "beach.png", "Beach Day", "2025-05-07"
+    )  # Duplicate
 
     async with aiosqlite.connect(temp_db) as db:
         cursor = await db.execute(
@@ -103,7 +109,9 @@ async def test_get_db_yields_connection(tmp_path):
         async for db in get_db():
             assert isinstance(db, aiosqlite.Connection)
 
-            await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
+            await db.execute(
+                "CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)"
+            )
             await db.execute("INSERT INTO test (value) VALUES ('hello')")
             await db.commit()
 

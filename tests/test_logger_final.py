@@ -30,7 +30,9 @@ async def test_gcs_proxy_content_type_fallback(mock_client, mock_exists):
     mock_client.return_value.bucket.return_value.blob.return_value = blob
 
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/test.dat")
         assert res.status_code == 200
         assert res.headers["content-type"] == "application/octet-stream"
@@ -44,7 +46,9 @@ async def test_gcs_proxy_content_type_fallback(mock_client, mock_exists):
 )
 async def test_gcs_proxy_internal_error(mock_client, mock_exists):
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/shouldfail.jpg")
         assert res.status_code == 500
 
@@ -62,7 +66,9 @@ async def test_search_query_logic(tmp_path):
         await db.execute(
             "CREATE TABLE images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
         )
-        await db.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)")
+        await db.execute(
+            "CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)"
+        )
         await db.execute(
             "CREATE TABLE image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
         )
@@ -84,7 +90,9 @@ async def test_search_query_logic(tmp_path):
         )
 
         transport = ASGITransport(app=logger.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
             res = await client.get("/search?q=power")
             assert res.status_code == 200
             assert "/uploads/thumb/test.jpg.thumb.jpg" in res.text

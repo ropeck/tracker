@@ -28,7 +28,9 @@ async def test_login_redirect(mock_redirect, app_with_session):
     mock_redirect.return_value = RedirectResponse(url="/auth")
 
     transport = ASGITransport(app=app_with_session)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as client:
         response = await client.get("/login")
 
     assert response.status_code == 307 or response.status_code == 302
@@ -37,7 +39,9 @@ async def test_login_redirect(mock_redirect, app_with_session):
 
 
 @pytest.mark.asyncio
-@patch("scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock)
+@patch(
+    "scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock
+)
 @patch("scripts.auth.oauth.google.userinfo", new_callable=AsyncMock)
 async def test_auth_success(mock_userinfo, mock_token, app_with_session):
     mock_token.return_value = {
@@ -55,9 +59,13 @@ async def test_auth_success(mock_userinfo, mock_token, app_with_session):
 
 
 @pytest.mark.asyncio
-@patch("scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock)
+@patch(
+    "scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock
+)
 @patch("scripts.auth.oauth.google.userinfo", new_callable=AsyncMock)
-async def test_auth_rejects_invalid_user(mock_userinfo, mock_token, app_with_session):
+async def test_auth_rejects_invalid_user(
+    mock_userinfo, mock_token, app_with_session
+):
     mock_token.return_value = {"userinfo": {"email": "not@allowed.com"}}
     mock_userinfo.return_value = {"email": "not@allowed.com"}
 

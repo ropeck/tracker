@@ -146,7 +146,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.add_middleware(SessionMiddleware, secret_key="some-random-secret-you-wont-guess")
+app.add_middleware(
+    SessionMiddleware, secret_key="some-random-secret-you-wont-guess"
+)
 app.include_router(auth_router)
 
 auth_scheme = HTTPBearer(auto_error=False)
@@ -178,8 +180,6 @@ BLOCKED_TAGS = {
     "null",
     "none",
     "json",
-    "objects",
-    "elements",
     "quantity 1",
 }
 
@@ -233,7 +233,9 @@ async def process_image(upload_info):
             summary_file.write(result["summary"])
         with open(summary_path, "rb") as fh:
             upload_file_to_gcs(
-                GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt", fh
+                GCS_BUCKET,
+                f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt",
+                fh,
             )
 
         # Create thumbnail
@@ -243,7 +245,9 @@ async def process_image(upload_info):
             img.save(thumb_path, "JPEG")
         with thumb_path.open("rb") as fh:
             upload_file_to_gcs(
-                GCS_BUCKET, f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg", fh
+                GCS_BUCKET,
+                f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg",
+                fh,
             )
 
         # After uploading thumb/summary
@@ -256,14 +260,12 @@ async def process_image(upload_info):
 
         # Update metadata
         meta = json.loads(META_FILE.read_text())
-        meta.append(
-            {
-                "filename": filename,
-                "summary": result["summary"],
-                "label": label,
-                "timestamp": utc_now_iso(),
-            }
-        )
+        meta.append({
+            "filename": filename,
+            "summary": result["summary"],
+            "label": label,
+            "timestamp": utc_now_iso(),
+        })
         META_FILE.write_text(json.dumps(meta, indent=2))
 
     except Exception as e:
@@ -304,7 +306,8 @@ async def gcs_proxy(path: str, request: Request):
         if not blob.exists():
             logging.warning(f"❌ GCS file not found: {gcs_path}")
             return JSONResponse(
-                status_code=404, content={"error": "File not found", "path": gcs_path}
+                status_code=404,
+                content={"error": "File not found", "path": gcs_path},
             )
 
         stream = blob.open("rb")
@@ -332,8 +335,12 @@ async def gcs_proxy(path: str, request: Request):
         )
 
 
-def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
-    client = storage.Client.from_service_account_json("/app/service-account-key.json")
+def upload_file_to_gcs(
+    bucket_name: str, destination_blob_name: str, file_obj
+) -> str:
+    client = storage.Client.from_service_account_json(
+        "/app/service-account-key.json"
+    )
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     file_obj.seek(0)
@@ -412,7 +419,9 @@ Reply with a JSON array of tag names. For example:
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+async def view_photos(
+    request: Request, db: aiosqlite.Connection = Depends(get_db)
+):
     cursor = await db.execute(
         """
         SELECT images.filename, images.timestamp, GROUP_CONCAT(tags.name)
@@ -428,15 +437,13 @@ async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_d
     for row in rows:
         filename, timestamp, tags_str = row
         tags = tags_str.split(",") if tags_str else []
-        photos.append(
-            {
-                "filename": filename,
-                "timestamp": timestamp,
-                "tags": tags,
-                "proxy_url": f"/uploads/{filename}",
-                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-            }
-        )
+        photos.append({
+            "filename": filename,
+            "timestamp": timestamp,
+            "tags": tags,
+            "proxy_url": f"/uploads/{filename}",
+            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+        })
     return templates.TemplateResponse(
         request, "photo_gallery_template.html", {"photos": photos}
     )
@@ -485,15 +492,13 @@ async def search_photos(request: Request, q: str = ""):
             tags = tags_str.split(",") if tags_str else []
             if query and not any(query in tag.lower() for tag in tags):
                 continue
-            photos.append(
-                {
-                    "filename": filename,
-                    "timestamp": timestamp,
-                    "tags": tags,
-                    "proxy_url": f"/uploads/{filename}",
-                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-                }
-            )
+            photos.append({
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            })
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -534,15 +539,13 @@ async def search_by_prompt(
         normalized_tags = [clean_tag_name(t) for t in tags]
         if not any(tag in matched_tags for tag in normalized_tags):
             continue
-        photos.append(
-            {
-                "filename": filename,
-                "timestamp": timestamp,
-                "tags": tags,
-                "proxy_url": f"/uploads/{filename}",
-                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-            }
-        )
+        photos.append({
+            "filename": filename,
+            "timestamp": timestamp,
+            "tags": tags,
+            "proxy_url": f"/uploads/{filename}",
+            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+        })
 
     return templates.TemplateResponse(
         request,
@@ -574,44 +577,47 @@ async def trigger_backup(
 
     # AUTH BYPASS (dev/testing only)
     if os.getenv("DISABLE_BACKUP_AUTH", "").lower() == "true":
-        logging.warning("⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)")
+        logging.warning(
+            "⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)"
+        )
+    # 1. OAuth2 user
+    elif user:
+        email = user.get("email")
+        if email in allowed_users:
+            logging.info(
+                f"✅ Authenticated user '{email}' allowed to trigger backup"
+            )
+        else:
+            logging.warning(f"❌ User '{email}' not in allowlist")
+            raise HTTPException(status_code=403, detail="Unauthorized user")
+
+    # 2. Kubernetes Service Account
     else:
-        # 1. OAuth2 user
-        if user:
-            email = user.get("email")
-            if email in allowed_users:
+        token = credentials.credentials if credentials else None
+        if not token:
+            raise HTTPException(
+                status_code=403, detail="Missing Authorization token"
+            )
+
+        try:
+            info = jwt.decode(token, verify=False)  # in-cluster: skip verify
+            subject = info.get("sub")
+            if subject in allowed_sas:
                 logging.info(
-                    f"✅ Authenticated user '{email}' allowed to trigger backup"
+                    f"✅ Authenticated service account '{subject}' allowed to trigger backup"
                 )
             else:
-                logging.warning(f"❌ User '{email}' not in allowlist")
-                raise HTTPException(status_code=403, detail="Unauthorized user")
-
-        # 2. Kubernetes Service Account
-        else:
-            token = credentials.credentials if credentials else None
-            if not token:
-                raise HTTPException(
-                    status_code=403, detail="Missing Authorization token"
+                logging.warning(
+                    f"❌ Service account '{subject}' not in allowlist"
                 )
-
-            try:
-                info = jwt.decode(token, verify=False)  # in-cluster: skip verify
-                subject = info.get("sub")
-                if subject in allowed_sas:
-                    logging.info(
-                        f"✅ Authenticated service account '{subject}' allowed to trigger backup"
-                    )
-                else:
-                    logging.warning(f"❌ Service account '{subject}' not in allowlist")
-                    raise HTTPException(
-                        status_code=403, detail="Unauthorized service account"
-                    )
-            except Exception as e:
-                logging.warning(f"❌ JWT decode error: {e}")
                 raise HTTPException(
-                    status_code=403, detail="Invalid service account token"
+                    status_code=403, detail="Unauthorized service account"
                 )
+        except Exception as e:
+            logging.warning(f"❌ JWT decode error: {e}")
+            raise HTTPException(
+                status_code=403, detail="Invalid service account token"
+            )
 
     return await perform_backup()
 
@@ -651,7 +657,9 @@ async def perform_backup():
 
 async def cleanup_old_backups():
     backups = sorted(
-        DB_BACKUP_DIR.glob("backup-*.sqlite3"), key=os.path.getmtime, reverse=True
+        DB_BACKUP_DIR.glob("backup-*.sqlite3"),
+        key=os.path.getmtime,
+        reverse=True,
     )
     if len(backups) <= MIN_BACKUPS:
         return
