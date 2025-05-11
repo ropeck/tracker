@@ -6,6 +6,7 @@ storing image metadata, tags, and associations.
 
 from pathlib import Path
 
+import aiofiles
 import aiosqlite
 
 from scripts.config import BACKUP_DB_PATH
@@ -14,19 +15,17 @@ from scripts.config import BACKUP_DB_PATH
 DB_PATH = Path("uploads/metadata.db")
 
 
-async def init_db(schema_path="scripts/schema.sql") -> None:
-    """Initialize the SQLite database using the provided schema file.
 
-    Args:
-        schema_path (str): Path to the SQL schema file to execute.
-    """
+async def init_db(schema_path: str="scripts/schema.sql") -> None:
+    """Initialize the SQLite database using the provided schema file."""
     async with aiosqlite.connect(DB_PATH) as db:
-        with open(schema_path) as f:
-            await db.executescript(f.read())
+        async with aiofiles.open(schema_path) as f:
+            schema = await f.read()
+            await db.executescript(schema)
         await db.commit()
 
 
-async def add_image(filename, label, timestamp) -> None:
+async def add_image(filename: str, label: str, timestamp: str) -> None:
     """Insert an image record into the database if it doesn't already exist.
 
     Args:
@@ -36,13 +35,14 @@ async def add_image(filename, label, timestamp) -> None:
     """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR IGNORE INTO images (filename, label, timestamp) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO images (filename, label, timestamp) "
+            "VALUES (?, ?, ?)",
             (filename, label, timestamp),
         )
         await db.commit()
 
 
-async def add_tag(name) -> None:
+async def add_tag(name: str) -> None:
     """Add a tag to the tags table if it doesn't already exist.
 
     Args:
@@ -55,7 +55,7 @@ async def add_tag(name) -> None:
         await db.commit()
 
 
-async def link_image_tag(filename, tag_name) -> None:
+async def link_image_tag(filename: str, tag_name: str) -> None:
     """Associate a tag with an image using their existing database IDs.
 
     Args:
@@ -77,13 +77,14 @@ async def link_image_tag(filename, tag_name) -> None:
 
         if image and tag:
             await db.execute(
-                "INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO image_tags (image_id, tag_id) "
+                "VALUES (?, ?)",
                 (image[0], tag[0]),
             )
             await db.commit()
 
 
-async def get_db():
+async def get_db() -> aiosqlite.Connection:
     """Yield a database connection using the backup DB path.
 
     Used as a FastAPI dependency for injecting database access.

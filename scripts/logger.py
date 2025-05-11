@@ -1,55 +1,19 @@
-# Project: Home Inventory & Object Memory System
-# Description:
-# This is a FastAPI-based app running on Kubernetes (GKE) that allows uploading photos via web UI.
-# Photos are stored and viewed with metadata (timestamp, optional labels).
-# The goal is to build an AI-powered system to help clean up and organize physical spaces.
-# It will track objects, tools, gear, books, etc., across shelves, bins, and zones.
-# Vision-based analysis is used to identify objects in photos and attach searchable tags.
-
-# Current architecture:
-# - FastAPI app deployed as home-app on GKE
-# - Frontend: file upload form, basic gallery view
-# - Photos uploaded via phone or web, stored in a flat /photos dir
-# - Future: tie photos to NFC-tagged zones or storage bins
-
-# 📋 Goals You Just Described
-
-# | Feature | Details |
-# |:--------|:--------|
-# | 🛠️ Add queuing | Queue the Vision API/image processing instead of blocking during upload |
-# | 🛠️ Show tags for each photo | Display tags (objects/summary) in the photo gallery view |
-# | 🛠️ Show uploaded photo immediately | After upload, show the uploaded photo + summary without needing a manual refresh |
-
-# ---
-
-# # 🛠 Summary of Upgrades
-
-# | Feature | Status |
-# |:--------|:-------|
-# | ✅ Background queue for image processing | (fast uploads, async backend) |
-# | ✅ Display tags next to each photo | (improved gallery info) |
-# | ✅ Instant upload preview | (better feedback to user) |
-
-# ---
-#
-# Copilot, focus on:
-# - Post-upload tagging
-# - Search/filter by tags
-# - Clean, readable FastAPI routes
+"""Endpoints for tracker app."""
 
 import asyncio
 import hashlib
 import json
 import logging
-import mimetypes
 import os
 import shutil
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from os import getenv
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, BinaryIO
 
+import aiofiles  # make sure this is imported
 import aiosqlite
 from dotenv import load_dotenv
 from fastapi import (
@@ -58,18 +22,12 @@ from fastapi import (
     File,
     Form,
     HTTPException,
-    Query,
     Request,
     Security,
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import (
-    HTMLResponse,
-    JSONResponse,
-    RedirectResponse,
-    StreamingResponse,
-)
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -88,10 +46,15 @@ from scripts.vision import analyze_image_with_openai, call_openai_chat
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
 templates = Jinja2Templates(directory="scripts/templates")
 
 # Global queue
@@ -110,27 +73,28 @@ async def process_uploads() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handles startup and shutdown tasks for the FastAPI app."""
-    global upload_worker_task
+    global upload_worker_task  # noqa: PLW0603
 
+    del app   # unused arg
     upload_worker_task = asyncio.create_task(process_uploads())
-    logging.info("🚀 Upload processing queue started.")
+    log.info("🚀 Upload processing queue started.")
 
     restored = BACKUP_DB_PATH.exists() and await restore_db_from_gcs_snapshot(
         GCS_BUCKET
     )
     if restored:
-        logging.info("Restoring DB from GCS snapshot and delta sync...")
+        log.info("Restoring DB from GCS snapshot and delta sync...")
         await perform_backup()
     else:
         if not BACKUP_DB_PATH.exists():
-            logging.info(f"No database backup found at {BACKUP_DB_PATH}.")
-        logging.info("Fallback: rebuilding DB from summary.txt")
+            log.info(f"No database backup found at {BACKUP_DB_PATH}.")
+        log.info("Fallback: rebuilding DB from summary.txt")
 
     await rebuild_db_from_gcs(bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX)
 
-    logging.info("Initialized sqlite database.")
+    log.info("Initialized sqlite database.")
 
     await init_db()
     await perform_backup()
@@ -142,7 +106,7 @@ async def lifespan(app: FastAPI):
         try:
             await upload_worker_task
         except asyncio.CancelledError:
-            logging.info("🛑 Upload processing queue stopped.")
+            log.info("🛑 Upload processing queue stopped.")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -190,7 +154,7 @@ app.add_middleware(
 
 
 @app.get("/healthz")
-async def health_check():
+async def health_check() -> JSONResponse:
     """Simple health check endpoint to verify DB is reachable."""
     try:
         async with aiosqlite.connect(BACKUP_DB_PATH) as db:
@@ -204,7 +168,7 @@ async def health_check():
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
-        logging.warning(f"🩺 Health check failed: {e}")
+        log.exception("🩺 Health check failed")
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(e)},
@@ -213,35 +177,37 @@ async def health_check():
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
 
+async def process_image(upload_info: tuple) -> None:
+    """Process an uploaded image file.
 
-async def process_image(upload_info) -> None:
-    """Process an uploaded image file:
     - Generates a summary using OpenAI Vision
     - Saves the summary and thumbnail
     - Uploads both to GCS
     - Updates local metadata and SQLite DB with tags.
     """
     file_path, filename, label = upload_info
-    logging.info(f"🔧 Processing file: {filename}")
+    log.info(f"🔧 Processing file: {filename}")
 
     try:
         result = analyze_image_with_openai(str(file_path))
 
+        # Save summary
         summary_path = UPLOAD_DIR / f"{filename}.summary.txt"
-        with open(summary_path, "w") as summary_file:
-            summary_file.write(result["summary"])
-        with open(summary_path, "rb") as fh:
+        async with aiofiles.open(summary_path, "w") as summary_file:
+            await summary_file.write(result["summary"])
+        async with aiofiles.open(summary_path, "rb") as fh:
             upload_file_to_gcs(
                 GCS_BUCKET,
                 f"{GCS_UPLOAD_PREFIX}/summary/{filename}.summary.txt",
                 fh,
             )
 
+        # Create thumbnail (PIL is still sync; okay here)
         thumb_path = UPLOAD_DIR / f"{filename}.thumb.jpg"
         with Image.open(file_path) as img:
             img.thumbnail((300, 300))
             img.save(thumb_path, "JPEG")
-        with thumb_path.open("rb") as fh:
+        async with aiofiles.open(thumb_path, "rb") as fh:
             upload_file_to_gcs(
                 GCS_BUCKET,
                 f"{GCS_UPLOAD_PREFIX}/thumb/{filename}.thumb.jpg",
@@ -255,105 +221,41 @@ async def process_image(upload_info) -> None:
                 await add_tag(clean_tag)
                 await link_image_tag(filename, clean_tag)
 
-        meta = json.loads(META_FILE.read_text())
+        async with aiofiles.open(META_FILE) as f:
+            meta_text = await f.read()
+            meta = json.loads(meta_text)
         meta.append({
             "filename": filename,
             "summary": result["summary"],
             "label": label,
             "timestamp": utc_now_iso(),
         })
-        META_FILE.write_text(json.dumps(meta, indent=2))
+        async with aiofiles.open(META_FILE, "w") as f:
+            await f.write(json.dumps(meta, indent=2))
 
-    except Exception as e:
-        logging.exception(f"Error processing {filename}: {e}")
+    except Exception:
+        log.exception("Error processing %s", filename)
 
 
-@app.get("/rebuild", response_class=HTMLResponse)
-async def manual_rebuild(
-    request: Request,
-    user: Annotated[dict, Depends(get_current_user)],
-    force: Annotated[str, Query()] = "false",
-):
-    """Manually trigger a DB rebuild from GCS, optionally forcing it.
+def upload_file_to_gcs(bucket_name: str, destination_blob_name: str,
+                       file_obj: BinaryIO) -> str:
+    """Store an image file in GCS bucket.
 
-    Requires user authentication.
+    Args:
+        bucket_name (str): Name of the GCS bucket.
+        destination_blob_name (str): Name of blob in GCS,
+        file_obj (file): File object to upload.
     """
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    force_flag = force.strip().lower() not in ("", "0", "false", "no", "off")
-
-    await rebuild_db_from_gcs(
-        bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX, force=force_flag
-    )
-    return templates.TemplateResponse(request, "rebuild.html")
-
-
-@app.get("/uploads/{path:path}")
-async def gcs_proxy(path: str, request: Request):
-    """Proxy GCS file access via FastAPI endpoint.
-
-    Streams file if it exists, or returns a 404.
-    """
-    gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
-    logging.info(f"📦 GCS proxy requested: {gcs_path}")
-
-    try:
-        key_path = "/app/service-account-key.json"
-        if os.path.exists(key_path):
-            client = storage.Client.from_service_account_json(key_path)
-        else:
-            client = storage.Client()
-        bucket = client.bucket(GCS_BUCKET)
-        blob = bucket.blob(gcs_path)
-
-        if not blob.exists():
-            logging.warning(f"❌ GCS file not found: {gcs_path}")
-            return JSONResponse(
-                status_code=404,
-                content={"error": "File not found", "path": gcs_path},
-            )
-
-        stream = blob.open("rb")
-        content_type = (
-            blob.content_type
-            or mimetypes.guess_type(path)[0]
-            or "application/octet-stream"
-        )
-
-        return StreamingResponse(
-            stream,
-            media_type=content_type,
-            headers={"Content-Disposition": f'inline; filename="{path}"'},
-        )
-    except Exception as e:
-        logging.exception(f"🔥 Error serving GCS file: {gcs_path}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal error accessing GCS",
-                "message": str(e),
-                "path": gcs_path,
-            },
-        )
-
-
-def upload_file_to_gcs(
-    bucket_name: str, destination_blob_name: str, file_obj
-) -> str:
-    """Uploads a file-like object to the specified GCS path."""
     client = storage.Client.from_service_account_json(
-        "/app/service-account-key.json"
-    )
+        "/app/service-account-key.json")
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
-    file_obj.seek(0)
     blob.upload_from_file(file_obj, rewind=True)
     return destination_blob_name
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request) -> HTMLResponse:
     """Render the home page with the file upload form."""
     return templates.TemplateResponse(request, "index.html")
 
@@ -361,7 +263,8 @@ async def index(request: Request):
 @app.get("/unauthorized", response_class=HTMLResponse)
 async def unauthorized() -> str:
     """Return a simple 403 Forbidden message for unauthorized access."""
-    return "<h1>403 Forbidden</h1><p>This app is restricted to the authorized user only.</p>"
+    return ("<h1>403 Forbidden</h1><p>This app is restricted to the authorized "
+            "user only.</p>")
 
 
 @app.post("/upload")
@@ -424,7 +327,7 @@ Reply with a JSON array of tag names. For example:
         if isinstance(tags, list):
             return [clean_tag_name(tag) for tag in tags if isinstance(tag, str)]
     except Exception as e:
-        logging.warning(f"AI response parsing failed: {e} -- raw: {response}")
+        log.warning(f"AI response parsing failed: {e} -- raw: {response}")
     return []
 
 
@@ -607,17 +510,17 @@ async def trigger_backup(
     ]
 
     if os.getenv("DISABLE_BACKUP_AUTH", "").lower() == "true":
-        logging.warning(
+        log.warning(
             "⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)"
         )
     elif user:
         email = user.get("email")
         if email in allowed_users:
-            logging.info(
+            log.info(
                 f"✅ Authenticated user '{email}' allowed to trigger backup"
             )
         else:
-            logging.warning(f"❌ User '{email}' not in allowlist")
+            log.warning(f"❌ User '{email}' not in allowlist")
             raise HTTPException(status_code=403, detail="Unauthorized user")
     else:
         token = credentials.credentials if credentials else None
@@ -630,18 +533,18 @@ async def trigger_backup(
             info = jwt.decode(token, verify=False)
             subject = info.get("sub")
             if subject in allowed_sas:
-                logging.info(
+                log.info(
                     f"✅ Authenticated service account '{subject}' allowed to trigger backup"
                 )
             else:
-                logging.warning(
+                log.warning(
                     f"❌ Service account '{subject}' not in allowlist"
                 )
                 raise HTTPException(
                     status_code=403, detail="Unauthorized service account"
                 )
         except Exception as e:
-            logging.warning(f"❌ JWT decode error: {e}")
+            log.warning(f"❌ JWT decode error: {e}")
             raise HTTPException(
                 status_code=403, detail="Invalid service account token"
             )
@@ -673,10 +576,10 @@ async def perform_backup():
         with open(backup_path, "rb") as f:
             backup_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324
         if current_hash == backup_hash:
-            logging.info("📦 No DB changes since last backup. Skipping upload.")
+            log.info("📦 No DB changes since last backup. Skipping upload.")
             return {"status": "skipped", "reason": "No changes detected."}
 
-    logging.info(f"📦 DB backup created: {backup_filename}")
+    log.info(f"📦 DB backup created: {backup_filename}")
     with open(backup_path, "rb") as f:
         gcs_path = f"db-backups/{backup_filename}"
         upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
@@ -705,8 +608,8 @@ async def cleanup_old_backups() -> None:
             kept += 1
             continue
         if os.path.getmtime(path) < cutoff:
-            logging.info(f"🧹 Removing old backup: {path}")
+            log.info(f"🧹 Removing old backup: {path}")
             try:
                 path.unlink()
             except Exception as e:
-                logging.warning(f"Could not delete {path}: {e}")
+                log.warning(f"Could not delete {path}: {e}")

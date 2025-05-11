@@ -15,6 +15,7 @@ from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from requests import Response
 
 load_dotenv()
 
@@ -34,18 +35,17 @@ oauth.register(
 
 
 @router.get("/login")
-async def login(request: Request):
-    """Initiates the OAuth login flow by redirecting the user to Google's
-    authorization endpoint.
-    """
+async def login(request: Request) -> RedirectResponse:
+    """Initiates the OAuth login flow redirecting to authorization endpoint."""
     redirect_uri = str(request.url_for("auth")).replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/auth")
-async def auth(request: Request):
-    """Handles the OAuth callback from Google, validates the user, and stores
-    the user info in the session if authorized.
+async def auth(request: Request) -> RedirectResponse:
+    """Handles the OAuth callback from Google.
+
+    Validates the user, and stores the user info in the session if authorized.
     """
     token = await oauth.google.authorize_access_token(request)
 
@@ -62,13 +62,13 @@ async def auth(request: Request):
 
 
 @router.get("/logout")
-async def logout(request: Request):
+async def logout(request: Request) -> RedirectResponse:
     """Logs out the current user by removing their session data."""
     request.session.pop("user", None)
     return RedirectResponse(url="/", status_code=302)
 
 
-def get_current_user(request: Request):
+def get_current_user(request: Request) -> Response:
     """Returns the current user from the session.
 
     If the NOLOGIN environment variable is set, bypasses auth and returns the
