@@ -1,9 +1,7 @@
 import aiosqlite
 
 from scripts.config import BACKUP_DB_PATH
-from scripts.util import utc_now_iso
 from pathlib import Path
-import aiosqlite
 
 DB_PATH = Path("uploads/metadata.db")
 

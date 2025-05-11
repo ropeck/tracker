@@ -43,12 +43,10 @@ import json
 import logging
 import mimetypes
 import os
-import re
 import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlencode
 
 import aiosqlite
 from dotenv import load_dotenv
@@ -74,7 +72,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from google.auth import jwt
-from google.auth.transport import requests as google_requests
 from google.cloud import storage
 from PIL import Image
 from starlette.middleware.sessions import SessionMiddleware
@@ -83,7 +80,7 @@ from starlette.requests import Request
 from scripts.auth import get_current_user
 from scripts.auth import router as auth_router
 from scripts.config import BACKUP_DB_PATH, DB_BACKUP_DIR
-from scripts.db import DB_PATH, add_image, add_tag, get_db, init_db, link_image_tag
+from scripts.db import add_image, add_tag, get_db, init_db, link_image_tag
 from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
 from scripts.util import clean_tag_name, utc_now_iso
 from scripts.vision import analyze_image_with_openai, call_openai_chat

@@ -2,9 +2,8 @@ import os
 
 from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
 
 load_dotenv()
 

@@ -6,7 +6,6 @@ import base64
 import logging
 import os
 
-import openai
 from openai import AsyncOpenAI, OpenAI
 
 
