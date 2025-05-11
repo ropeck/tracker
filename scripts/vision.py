@@ -1,20 +1,22 @@
-"""This module handles uploading images and sending them to OpenAI's GPT-4
-Vision API.
+"""Dandles uploading images and sending them to OpenAI's GPT-4 Vision API.
 
-It encodes images in base64, sends them to the model, and extracts
-object tags to support image-based inventory search in the application.
+It encodes images in base64, sends them to the model, and extracts object tags
+to support image-based inventory search in the application.
 """
 
 import base64
 import logging
 import os
+from pathlib import Path
 
 from openai import AsyncOpenAI, OpenAI
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def encode_image_to_base64(image_path: str) -> str:
-    """Reads an image file and encodes it to a base64 string for inclusion in
-    API requests.
+    """Generate base64 encoding of image file.
 
     Args:
         image_path (str): Path to the image file.
@@ -22,19 +24,19 @@ def encode_image_to_base64(image_path: str) -> str:
     Returns:
         str: Base64-encoded representation of the image.
     """
-    with open(image_path, "rb") as f:
+    with Path.open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
 def analyze_image_with_openai(image_path: str) -> dict:
-    """Sends an image to OpenAI's GPT-4 Vision model and retrieves a summary of
-    detected objects.
+    """GEt summary of detected objects from AI API.
 
     Args:
         image_path (str): Path to the local image file.
 
     Returns:
-        dict: Dictionary containing a "summary" field with raw model output (typically JSON-formatted).
+        dict: Dictionary containing a "summary" field with raw model output
+        (typically JSON-formatted).
     """
     image_data = encode_image_to_base64(image_path)
     client = OpenAI()
@@ -46,7 +48,8 @@ def analyze_image_with_openai(image_path: str) -> dict:
                 "content": [
                     {
                         "type": "text",
-                        "text": "List the objects in this image for inventory as JSON.",
+                        "text": ("List the objects in this image for inventory "
+                                 "as JSON."),
                     },
                     {
                         "type": "image_url",
@@ -61,13 +64,11 @@ def analyze_image_with_openai(image_path: str) -> dict:
     )
 
     content = response.choices[0].message.content
-    print(content)
     return {"summary": content}
 
 
 def get_async_client() -> AsyncOpenAI:
-    """Creates and returns an asynchronous OpenAI client using the API key from
-    environment.
+    """Creates and returns an async OpenAI client with environment API key.
 
     Returns:
         AsyncOpenAI: Initialized async OpenAI client instance.
@@ -76,20 +77,26 @@ def get_async_client() -> AsyncOpenAI:
 
 
 async def call_openai_chat(user_prompt: str, system_prompt: str = "") -> str:
-    """Sends a chat message to the OpenAI API using the async client and
-    retrieves the response.
+    """Sends a chat message to the OpenAI API using the async client.
 
     Args:
         user_prompt (str): The message from the user.
-        system_prompt (str, optional): The system instruction (contextual guidance). Defaults to "".
+        system_prompt (str, optional): The system instruction. Defaults to "".
 
     Returns:
         str: The assistant's response text, or an empty string on error.
     """
     client = get_async_client()
     try:
-        response = await client.chat.completions.create(...)
+        response = await client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+        )
         return response.choices[0].message.content.strip()
-    except Exception as e:
-        logging.exception(f"OpenAI API error: {e}")
+    except Exception:
+        logger.exception("OpenAI API error")
         return ""

@@ -255,14 +255,12 @@ async def process_image(upload_info):
                 await link_image_tag(filename, clean_tag)
 
         meta = json.loads(META_FILE.read_text())
-        meta.append(
-            {
-                "filename": filename,
-                "summary": result["summary"],
-                "label": label,
-                "timestamp": utc_now_iso(),
-            }
-        )
+        meta.append({
+            "filename": filename,
+            "summary": result["summary"],
+            "label": label,
+            "timestamp": utc_now_iso(),
+        })
         META_FILE.write_text(json.dumps(meta, indent=2))
 
     except Exception as e:
@@ -276,6 +274,7 @@ async def manual_rebuild(
     force: str = Query(default="false"),
 ):
     """Manually trigger a DB rebuild from GCS, optionally forcing it.
+
     Requires user authentication.
     """
     if not user:
@@ -292,6 +291,7 @@ async def manual_rebuild(
 @app.get("/uploads/{path:path}")
 async def gcs_proxy(path: str, request: Request):
     """Proxy GCS file access via FastAPI endpoint.
+
     Streams file if it exists, or returns a 404.
     """
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
@@ -337,10 +337,13 @@ async def gcs_proxy(path: str, request: Request):
         )
 
 
-def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -> str:
-    """Uploads a file-like object to the specified GCS path.
-    """
-    client = storage.Client.from_service_account_json("/app/service-account-key.json")
+def upload_file_to_gcs(
+    bucket_name: str, destination_blob_name: str, file_obj
+) -> str:
+    """Uploads a file-like object to the specified GCS path."""
+    client = storage.Client.from_service_account_json(
+        "/app/service-account-key.json"
+    )
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     file_obj.seek(0)
@@ -350,8 +353,7 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str, file_obj) -
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    """Render the home page with the file upload form.
-    """
+    """Render the home page with the file upload form."""
     return templates.TemplateResponse(request, "index.html")
 
 
@@ -368,7 +370,8 @@ async def protected_upload(
     label: str = Form(""),
     user: dict = Depends(get_current_user),
 ):
-    """Handle file uploads from authenticated users and enqueue them for processing."""
+    """Handle file uploads from authenticated users and enqueue them for
+    processing."""
     if not user:
         return RedirectResponse("/login", status_code=302)
 
@@ -397,7 +400,8 @@ async def protected_upload(
 
 
 async def get_tags_from_prompt(prompt: str, all_tags: list[str]) -> list[str]:
-    """Send a natural language query to the OpenAI API and return matched tags."""
+    """Send a natural language query to the OpenAI API and return matched
+    tags."""
     tag_str = ", ".join(sorted(set(all_tags)))
     system_prompt = f"""
 You are a helpful assistant for organizing home inventory items.
@@ -422,7 +426,9 @@ Reply with a JSON array of tag names. For example:
 
 
 @app.get("/photos", response_class=HTMLResponse)
-async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+async def view_photos(
+    request: Request, db: aiosqlite.Connection = Depends(get_db)
+):
     """Render the photo gallery view with associated tags and timestamps."""
     cursor = await db.execute(
         """
@@ -439,15 +445,13 @@ async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_d
     for row in rows:
         filename, timestamp, tags_str = row
         tags = tags_str.split(",") if tags_str else []
-        photos.append(
-            {
-                "filename": filename,
-                "timestamp": timestamp,
-                "tags": tags,
-                "proxy_url": f"/uploads/{filename}",
-                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-            }
-        )
+        photos.append({
+            "filename": filename,
+            "timestamp": timestamp,
+            "tags": tags,
+            "proxy_url": f"/uploads/{filename}",
+            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+        })
     return templates.TemplateResponse(
         request, "photo_gallery_template.html", {"photos": photos}
     )
@@ -455,7 +459,8 @@ async def view_photos(request: Request, db: aiosqlite.Connection = Depends(get_d
 
 @app.get("/search", response_class=HTMLResponse)
 async def search_photos(request: Request, q: str = ""):
-    """Search photos by matching tags from a query string and display results."""
+    """Search photos by matching tags from a query string and display
+    results."""
     query = q.strip().lower()
     async with aiosqlite.connect("uploads/metadata.db") as db:
         tag_cursor = await db.execute(
@@ -495,15 +500,13 @@ async def search_photos(request: Request, q: str = ""):
             tags = tags_str.split(",") if tags_str else []
             if query and not any(query in tag.lower() for tag in tags):
                 continue
-            photos.append(
-                {
-                    "filename": filename,
-                    "timestamp": timestamp,
-                    "tags": tags,
-                    "proxy_url": f"/uploads/{filename}",
-                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-                }
-            )
+            photos.append({
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            })
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -551,15 +554,13 @@ async def search_by_prompt(
         normalized_tags = [clean_tag_name(t) for t in tags]
         if not any(tag in matched_tags for tag in normalized_tags):
             continue
-        photos.append(
-            {
-                "filename": filename,
-                "timestamp": timestamp,
-                "tags": tags,
-                "proxy_url": f"/uploads/{filename}",
-                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-            }
-        )
+        photos.append({
+            "filename": filename,
+            "timestamp": timestamp,
+            "tags": tags,
+            "proxy_url": f"/uploads/{filename}",
+            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+        })
 
     return templates.TemplateResponse(
         request,
@@ -602,18 +603,24 @@ async def trigger_backup(
     ]
 
     if os.getenv("DISABLE_BACKUP_AUTH", "").lower() == "true":
-        logging.warning("⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)")
+        logging.warning(
+            "⚠️  Auth bypassed for /backup-now (DISABLE_BACKUP_AUTH=true)"
+        )
     elif user:
         email = user.get("email")
         if email in allowed_users:
-            logging.info(f"✅ Authenticated user '{email}' allowed to trigger backup")
+            logging.info(
+                f"✅ Authenticated user '{email}' allowed to trigger backup"
+            )
         else:
             logging.warning(f"❌ User '{email}' not in allowlist")
             raise HTTPException(status_code=403, detail="Unauthorized user")
     else:
         token = credentials.credentials if credentials else None
         if not token:
-            raise HTTPException(status_code=403, detail="Missing Authorization token")
+            raise HTTPException(
+                status_code=403, detail="Missing Authorization token"
+            )
 
         try:
             info = jwt.decode(token, verify=False)
@@ -623,19 +630,24 @@ async def trigger_backup(
                     f"✅ Authenticated service account '{subject}' allowed to trigger backup"
                 )
             else:
-                logging.warning(f"❌ Service account '{subject}' not in allowlist")
+                logging.warning(
+                    f"❌ Service account '{subject}' not in allowlist"
+                )
                 raise HTTPException(
                     status_code=403, detail="Unauthorized service account"
                 )
         except Exception as e:
             logging.warning(f"❌ JWT decode error: {e}")
-            raise HTTPException(status_code=403, detail="Invalid service account token")
+            raise HTTPException(
+                status_code=403, detail="Invalid service account token"
+            )
 
     return await perform_backup()
 
 
 async def perform_backup():
-    """Perform a snapshot backup of the SQLite DB to a local file and upload to GCS.
+    """Perform a snapshot backup of the SQLite DB to a local file and upload to
+    GCS.
 
     Returns:
         JSON result containing the backup status and path.
@@ -668,6 +680,7 @@ async def perform_backup():
 
 async def cleanup_old_backups():
     """Delete local backup files that exceed the retention policy.
+
     Keeps the most recent N backups or those newer than the max age.
     """
     backups = sorted(

@@ -36,8 +36,7 @@ oauth.register(
 @router.get("/login")
 async def login(request: Request):
     """Initiates the OAuth login flow by redirecting the user to Google's
-    authorization endpoint.
-    """
+    authorization endpoint."""
     redirect_uri = str(request.url_for("auth")).replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -45,8 +44,7 @@ async def login(request: Request):
 @router.get("/auth")
 async def auth(request: Request):
     """Handles the OAuth callback from Google, validates the user, and stores
-    the user info in the session if authorized.
-    """
+    the user info in the session if authorized."""
     token = await oauth.google.authorize_access_token(request)
     print("OAuth token response:", token)
 
@@ -67,15 +65,16 @@ async def auth(request: Request):
 
 @router.get("/logout")
 async def logout(request: Request):
-    """Logs out the current user by removing their session data.
-    """
+    """Logs out the current user by removing their session data."""
     request.session.pop("user", None)
     return RedirectResponse(url="/", status_code=302)
 
 
 def get_current_user(request: Request):
-    """Returns the current user from the session. If the NOLOGIN environment
-    variable is set, bypasses auth and returns the allowed user.
+    """Returns the current user from the session.
+
+    If the NOLOGIN environment variable is set, bypasses auth and returns the
+    allowed user.
     """
     if os.getenv("NOLOGIN", None):
         return {"email": ALLOWED_USER}

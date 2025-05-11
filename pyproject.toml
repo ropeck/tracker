@@ -1,9 +1,10 @@
 [tool.ruff]
 line-length = 80
+exclude = ["scripts/__init__.py"]
 
 [tool.ruff.lint]
 select = ["ALL"]  # or pick specific rules
-ignore = ["COM812"]
+ignore = ["COM812", "LOG015", "G004"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

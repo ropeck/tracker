@@ -1,7 +1,7 @@
 """Database access and helper functions for image and tag management.
 
-Handles initialization and interaction with the local SQLite database
-for storing image metadata, tags, and associations.
+Handles initialization and interaction with the local SQLite database for
+storing image metadata, tags, and associations.
 """
 
 from pathlib import Path
@@ -49,7 +49,9 @@ async def add_tag(name):
         name (str): Tag name to insert.
     """
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (name,))
+        await db.execute(
+            "INSERT OR IGNORE INTO tags (name) VALUES (?)", (name,)
+        )
         await db.commit()
 
 
@@ -68,7 +70,9 @@ async def link_image_tag(filename, tag_name):
         image = await cursor.fetchone()
 
         # Get tag ID
-        cursor = await db.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+        cursor = await db.execute(
+            "SELECT id FROM tags WHERE name = ?", (tag_name,)
+        )
         tag = await cursor.fetchone()
 
         if image and tag:

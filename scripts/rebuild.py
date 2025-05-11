@@ -56,22 +56,22 @@ async def rebuild_db_from_gcs(
         bucket_name (str): The name of the Google Cloud Storage bucket.
         prefix (str): The GCS path prefix where summary files are stored.
         force (bool, optional): If True, forces a rebuild even if the DB exists.
-        since_timestamp (str, optional): ISO timestamp; only process files newer than this.
+        since_timestamp (str, optional): Only process files newer than this.
     """
     if not since_timestamp and not should_rebuild_db(force):
         return
 
     logger.info("🔁 Starting rebuild from GCS...")
 
-    if not os.path.exists(DB_PATH):
-        logging.info(f"DB file does not exist, creating: {DB_PATH}")
+    if not Path.exists(DB_PATH):
+        logger.info("DB file does not exist, creating: {DB_PATH}")
         await init_db()
 
     try:
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blobs = list(bucket.list_blobs(prefix=f"{prefix}/summary"))
-        logging.info(f"🔁 Found {len(blobs)} summary files in GCS")
+        logger.info(f"🔁 Found {len(blobs)} summary files in GCS")
 
         # Optional time filtering
         if since_timestamp:
@@ -141,6 +141,7 @@ async def restore_db_from_gcs_snapshot(
         # Download snapshot
         latest_blob.download_to_filename(DB_PATH)
 
+        latest_ts = None
         # Connect to DB and get latest image timestamp
         async with aiosqlite.connect(DB_PATH) as db:
             cursor = await db.execute("SELECT MAX(timestamp) FROM images")
@@ -157,7 +158,7 @@ async def restore_db_from_gcs_snapshot(
             # Pass string version forward
             latest_ts = ts.isoformat(timespec="seconds")
 
-        logging.info(f"🔍 Latest DB image timestamp: {latest_ts or 'None'}")
+        logger.info(f"🔍 Latest DB image timestamp: {latest_ts or 'None'}")
 
         # Rebuild DB with only newer summary files
         await rebuild_db_from_gcs(
@@ -166,9 +167,8 @@ async def restore_db_from_gcs_snapshot(
             force=False,
             since_timestamp=latest_ts,
         )
-
-        return latest_ts
-
-    except Exception as e:
-        logging.exception(f"🔥 Failed to restore snapshot: {e}")
+    except Exception:
+        logger.exception("🔥 Failed to restore snapshot")
         return False
+    else:
+        return latest_ts
