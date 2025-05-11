@@ -1,4 +1,5 @@
 """General utility functions."""
+
 import re
 from datetime import UTC, datetime
 

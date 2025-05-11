@@ -48,8 +48,10 @@ def analyze_image_with_openai(image_path: str) -> dict:
                 "content": [
                     {
                         "type": "text",
-                        "text": ("List the objects in this image for inventory "
-                                 "as JSON."),
+                        "text": (
+                            "List the objects in this image for inventory "
+                            "as JSON."
+                        ),
                     },
                     {
                         "type": "image_url",

@@ -6,7 +6,7 @@ from pathlib import Path
 LOG_PATH = Path("data/log.json")
 
 
-def log_tag(tag_id, location="unknown"):
+def log_tag(tag_id, location="unknown") -> None:
     now = datetime.datetime.now().isoformat()
     entry = {"tag": tag_id, "timestamp": now, "location": location}
     LOG_PATH.parent.mkdir(exist_ok=True)
@@ -15,12 +15,12 @@ def log_tag(tag_id, location="unknown"):
 
 
 # Placeholder
-def read_tag():
+def read_tag() -> None:
     # Replace this with actual NFC read logic
     return None
 
 
-def run():
+def run() -> None:
     while True:
         tag = read_tag()
         if tag:

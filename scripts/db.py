@@ -14,7 +14,7 @@ from scripts.config import BACKUP_DB_PATH
 DB_PATH = Path("uploads/metadata.db")
 
 
-async def init_db(schema_path="scripts/schema.sql"):
+async def init_db(schema_path="scripts/schema.sql") -> None:
     """Initialize the SQLite database using the provided schema file.
 
     Args:
@@ -26,7 +26,7 @@ async def init_db(schema_path="scripts/schema.sql"):
         await db.commit()
 
 
-async def add_image(filename, label, timestamp):
+async def add_image(filename, label, timestamp) -> None:
     """Insert an image record into the database if it doesn't already exist.
 
     Args:
@@ -42,7 +42,7 @@ async def add_image(filename, label, timestamp):
         await db.commit()
 
 
-async def add_tag(name):
+async def add_tag(name) -> None:
     """Add a tag to the tags table if it doesn't already exist.
 
     Args:
@@ -55,7 +55,7 @@ async def add_tag(name):
         await db.commit()
 
 
-async def link_image_tag(filename, tag_name):
+async def link_image_tag(filename, tag_name) -> None:
     """Associate a tag with an image using their existing database IDs.
 
     Args:
@@ -91,6 +91,5 @@ async def get_db():
     Yields:
         aiosqlite.Connection: An async connection to the backup database.
     """
-    print(f"[REAL get_db] Using: {BACKUP_DB_PATH}")
     async with aiosqlite.connect(BACKUP_DB_PATH) as db:
         yield db

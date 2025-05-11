@@ -36,7 +36,8 @@ oauth.register(
 @router.get("/login")
 async def login(request: Request):
     """Initiates the OAuth login flow by redirecting the user to Google's
-    authorization endpoint."""
+    authorization endpoint.
+    """
     redirect_uri = str(request.url_for("auth")).replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -44,9 +45,9 @@ async def login(request: Request):
 @router.get("/auth")
 async def auth(request: Request):
     """Handles the OAuth callback from Google, validates the user, and stores
-    the user info in the session if authorized."""
+    the user info in the session if authorized.
+    """
     token = await oauth.google.authorize_access_token(request)
-    print("OAuth token response:", token)
 
     if "userinfo" in token:
         user = token["userinfo"]
@@ -54,10 +55,7 @@ async def auth(request: Request):
         user = await oauth.google.userinfo(token=token)
     request.session["user"] = dict(user)
 
-    print("User info:", user)
-
     if user.get("email") != ALLOWED_USER:
-        print(f"Access denied for: {user.get('email')}")
         return RedirectResponse("/unauthorized", status_code=302)
 
     return RedirectResponse(url="/", status_code=302)

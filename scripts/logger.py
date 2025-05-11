@@ -48,6 +48,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from os import getenv
 from pathlib import Path
+from typing import Annotated
 
 import aiosqlite
 from dotenv import load_dotenv
@@ -100,7 +101,7 @@ processing_queue = asyncio.Queue()
 upload_worker_task = None
 
 
-async def process_uploads():
+async def process_uploads() -> None:
     """Continuously process items in the upload queue."""
     while True:
         upload_info = await processing_queue.get()
@@ -213,12 +214,12 @@ async def health_check():
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
 
 
-async def process_image(upload_info):
+async def process_image(upload_info) -> None:
     """Process an uploaded image file:
     - Generates a summary using OpenAI Vision
     - Saves the summary and thumbnail
     - Uploads both to GCS
-    - Updates local metadata and SQLite DB with tags
+    - Updates local metadata and SQLite DB with tags.
     """
     file_path, filename, label = upload_info
     logging.info(f"🔧 Processing file: {filename}")
@@ -270,8 +271,8 @@ async def process_image(upload_info):
 @app.get("/rebuild", response_class=HTMLResponse)
 async def manual_rebuild(
     request: Request,
-    user: dict = Depends(get_current_user),
-    force: str = Query(default="false"),
+    user: Annotated[dict, Depends(get_current_user)],
+    force: Annotated[str, Query()] = "false",
 ):
     """Manually trigger a DB rebuild from GCS, optionally forcing it.
 
@@ -358,7 +359,7 @@ async def index(request: Request):
 
 
 @app.get("/unauthorized", response_class=HTMLResponse)
-async def unauthorized():
+async def unauthorized() -> str:
     """Return a simple 403 Forbidden message for unauthorized access."""
     return "<h1>403 Forbidden</h1><p>This app is restricted to the authorized user only.</p>"
 
@@ -366,12 +367,13 @@ async def unauthorized():
 @app.post("/upload")
 async def protected_upload(
     request: Request,
-    upload: UploadFile = File(...),
-    label: str = Form(""),
+    upload: Annotated[UploadFile, File()] = ...,
+    label: Annotated[str, Form()] = "",
     user: dict = Depends(get_current_user),
 ):
     """Handle file uploads from authenticated users and enqueue them for
-    processing."""
+    processing.
+    """
     if not user:
         return RedirectResponse("/login", status_code=302)
 
@@ -401,7 +403,8 @@ async def protected_upload(
 
 async def get_tags_from_prompt(prompt: str, all_tags: list[str]) -> list[str]:
     """Send a natural language query to the OpenAI API and return matched
-    tags."""
+    tags.
+    """
     tag_str = ", ".join(sorted(set(all_tags)))
     system_prompt = f"""
 You are a helpful assistant for organizing home inventory items.
@@ -427,7 +430,7 @@ Reply with a JSON array of tag names. For example:
 
 @app.get("/photos", response_class=HTMLResponse)
 async def view_photos(
-    request: Request, db: aiosqlite.Connection = Depends(get_db)
+    request: Request, db: Annotated[aiosqlite.Connection, Depends(get_db)]
 ):
     """Render the photo gallery view with associated tags and timestamps."""
     cursor = await db.execute(
@@ -460,7 +463,8 @@ async def view_photos(
 @app.get("/search", response_class=HTMLResponse)
 async def search_photos(request: Request, q: str = ""):
     """Search photos by matching tags from a query string and display
-    results."""
+    results.
+    """
     query = q.strip().lower()
     async with aiosqlite.connect("uploads/metadata.db") as db:
         tag_cursor = await db.execute(
@@ -516,7 +520,7 @@ async def search_photos(request: Request, q: str = ""):
 
 @app.post("/search/query", response_class=HTMLResponse)
 async def search_by_prompt(
-    request: Request, db: aiosqlite.Connection = Depends(get_db)
+    request: Request, db: Annotated[aiosqlite.Connection, Depends(get_db)]
 ):
     """Search photos using a free-form prompt interpreted by the AI model.
 
@@ -576,8 +580,8 @@ async def search_by_prompt(
 @app.get("/backup-now")
 async def trigger_backup(
     request: Request,
-    user: dict = Depends(get_current_user),
-    credentials: HTTPAuthorizationCredentials = Security(auth_scheme),
+    user: Annotated[dict, Depends(get_current_user)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Security(auth_scheme)],
 ):
     """Trigger a backup of the current metadata DB to GCS.
 
@@ -676,9 +680,10 @@ async def perform_backup():
     with open(backup_path, "rb") as f:
         gcs_path = f"db-backups/{backup_filename}"
         upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
+        return None
 
 
-async def cleanup_old_backups():
+async def cleanup_old_backups() -> None:
     """Delete local backup files that exceed the retention policy.
 
     Keeps the most recent N backups or those newer than the max age.
