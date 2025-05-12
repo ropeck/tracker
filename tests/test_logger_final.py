@@ -35,7 +35,7 @@ async def test_lifespan_runs(mock_worker, mock_client, mock_exists) -> None:
 
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
-@patch("scripts.logger.storage.Client")  # ← this is critical
+@patch("scripts.logger.storage.Client")
 @patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_file_found(
     mock_from_json, mock_client, mock_exists) -> None:
