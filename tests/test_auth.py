@@ -10,11 +10,11 @@ from scripts.auth import ALLOWED_USER, get_current_user, router
 
 
 @pytest.fixture
-def app_with_session():
+def app_with_session() -> FastAPI:
     from starlette.middleware.sessions import SessionMiddleware
 
     app = FastAPI()
-    app.add_middleware(SessionMiddleware, secret_key="test-secret")
+    app.add_middleware(SessionMiddleware, secret_key="test-secret")  # noqa: S106
     app.include_router(router)
     return app
 
@@ -54,7 +54,7 @@ async def test_auth_success(mock_userinfo, mock_token, app_with_session
     transport = ASGITransport(app=app_with_session)
     client = AsyncClient(transport=transport, base_url="http://testserver")
     res = await client.get("/auth", follow_redirects=False)
-    assert res.status_code == 302
+    assert res.status_code == 302  # noqa: PLR2004
     assert res.headers["location"] == "/"
     await client.aclose()
 
@@ -73,7 +73,7 @@ async def test_auth_rejects_invalid_user(
     transport = ASGITransport(app=app_with_session)
     client = AsyncClient(transport=transport, base_url="http://testserver")
     res = await client.get("/auth", follow_redirects=False)
-    assert res.status_code == 302
+    assert res.status_code == 302  # noqa: PLR2004
     assert res.headers["location"] == "/unauthorized"
     await client.aclose()
 
@@ -82,7 +82,7 @@ def test_logout_clears_session(app_with_session) -> None:
     with TestClient(app_with_session) as client:
         client.cookies.set("session", "mock")
         res = client.get("/logout", follow_redirects=False)
-        assert res.status_code == 302
+        assert res.status_code == 302  # noqa: PLR2004
         assert res.headers["location"] == "/"
 
 

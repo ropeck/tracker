@@ -1,10 +1,13 @@
+"""Methods to regenerate the db from the GCS summary.txt tag files."""
+
 from __future__ import annotations
 
 import logging
 import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import aiosqlite
 from google.cloud import storage
@@ -12,11 +15,13 @@ from google.cloud import storage
 from scripts.db import DB_PATH, add_image, add_tag, init_db, link_image_tag
 from scripts.util import clean_tag_name, parse_utc_timestamp, utc_now_iso
 
+if TYPE_CHECKING:
+    from google.cloud.storage import Blob
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def should_rebuild_db(force: bool = False) -> bool:
+def should_rebuild_db(*, force: bool = False) -> bool:
     """Determines whether the local DB should be rebuilt from GCS.
 
     This function checks:
@@ -48,7 +53,7 @@ def should_rebuild_db(force: bool = False) -> bool:
 
 async def rebuild_db_from_gcs(
     bucket_name: str,
-    prefix: str,
+    prefix: str, *,
     force: bool = False,
     since_timestamp: str | None = None,
 ) -> None:
@@ -93,7 +98,7 @@ async def rebuild_db_from_gcs(
                 )
 
         for blob in blobs:
-            filename = os.path.basename(blob.name).replace(".summary.txt", "")
+            filename = Path(blob.name).name.replace(".summary.txt", "")
             logging.info(f"🔁 Processing {filename}")
             contents = blob.download_as_text()
 
@@ -105,15 +110,18 @@ async def rebuild_db_from_gcs(
                     await link_image_tag(filename, tag)
 
         logging.info("✅ DB rebuilt from GCS summaries")
-    except Exception as e:
-        logging.exception(f"🔥 Failed to rebuild DB from GCS: {e}")
+    except Exception:
+        logging.exception("🔥 Failed to rebuild DB from GCS")
 
 
 async def restore_db_from_gcs_snapshot(
     bucket_name: str, snapshot_prefix: str = "db-backups/"
 ) -> bool:
-    """Restore the most recent .sqlite3 snapshot from GCS and apply any deltas
-    via summary.txt.
+    """Restore most recent db snapshot from GCS and apply any deltas.
+
+    Args:
+        bucket_name (str): Name of the GCS bucket.
+        snapshot_prefix (str): Bucket pathname prefix
 
     Returns:
         Timestamp of most recent GCS backup or False if no snapshots found.
@@ -130,11 +138,12 @@ async def restore_db_from_gcs_snapshot(
             return False
 
         # Sort by timestamp in filename (e.g., backup-2025-05-05.sqlite3)
-        def extract_date(blob):
+        def extract_date(blob: "Blob") -> datetime:  # noqa: UP037
             match = re.search(r"(\d{4}-\d{2}-\d{2})", blob.name)
             if match:
-                return datetime.strptime(match.group(1), "%Y-%m-%d")
-            return datetime.min
+                return datetime.strptime(match.group(1),
+                                         "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            return datetime.min.replace(tzinfo=timezone.utc)
 
         sqlite_blobs.sort(key=extract_date, reverse=True)
         latest_blob = sqlite_blobs[0]

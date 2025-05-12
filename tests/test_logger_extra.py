@@ -1,6 +1,7 @@
 import json
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import aiosqlite
 import pytest
@@ -26,7 +27,7 @@ async def test_rebuild_route() -> None:
             "scripts.logger.rebuild_db_from_gcs", new_callable=AsyncMock
         ) as mock_rebuild:
             res = await client.get("/rebuild")
-            assert res.status_code == 200
+            assert res.status_code == 200  # noqa: PLR2004
             assert mock_rebuild.called
 
 
@@ -45,15 +46,17 @@ async def test_gcs_proxy_file_found(mock_client, mock_exists) -> None:
         transport=transport, base_url="http://test"
     ) as client:
         res = await client.get("/uploads/test.jpg")
-        assert res.status_code == 200
+        assert res.status_code == 200  # noqa: PLR2004
 
 
 @pytest.mark.asyncio
 @patch("scripts.logger.storage.Client")
-@patch("os.path.exists", return_value=False)
+@patch("pathlib.Path.exists", return_value=False)
 async def test_gcs_proxy_not_found(mock_os, mock_client) -> None:
     blob = MagicMock()
     blob.exists.return_value = False
+    blob.content_type = "image/jpeg"
+    type(blob).content_type = PropertyMock(return_value="image/jpeg")
 
     mock_client.return_value.bucket.return_value.blob.return_value = blob
 
@@ -62,11 +65,11 @@ async def test_gcs_proxy_not_found(mock_os, mock_client) -> None:
         transport=transport, base_url="http://test"
     ) as client:
         res = await client.get("/uploads/missing.jpg")
-        assert res.status_code == 404
+        assert res.status_code == 404  # noqa: PLR2004
 
 
-def override_get_db(db_path):
-    async def _get_db():
+def override_get_db(db_path: str) -> callable:
+    async def _get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
         async with aiosqlite.connect(db_path) as db:
             yield db
 
@@ -114,7 +117,7 @@ async def test_search_query_response(mock_call, tmp_path) -> None:
         res = await client.post(
             "/search/query", data={"prompt": "Where are my USB cables?"}
         )
-        assert res.status_code == 200
+        assert res.status_code == 200  # noqa: PLR2004
         assert "usb" in res.text or "audio" in res.text
 
 
@@ -129,7 +132,6 @@ async def test_backup_now_success(mock_upload, tmp_path) -> None:
 
     with patch("scripts.config.BACKUP_DB_PATH", test_db_path):
         async for db in get_db():
-            # await db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
             await db.commit()
 
     backup_path = tmp_path / "backup-2025-05-07.sqlite3"
@@ -143,5 +145,5 @@ async def test_backup_now_success(mock_upload, tmp_path) -> None:
             "scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"
         ):
             res = await client.get("/backup-now")
-            assert res.status_code == 200
+            assert res.status_code == 200  # noqa: PLR2004
             assert mock_upload.called

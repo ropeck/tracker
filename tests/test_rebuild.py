@@ -94,7 +94,7 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     mock_add_image.assert_called_once_with("new_image", label="", timestamp=ANY)
     mock_add_tag.assert_any_call("tag3")
     mock_add_tag.assert_any_call("tag4")
-    assert mock_link.call_count == 2  # One for each tag
+    assert mock_link.call_count == 2  # One for each tag  # noqa: PLR2004
 
 
 def test_should_rebuild_db_with_force_env(tmp_path: Path,

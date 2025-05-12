@@ -1,12 +1,14 @@
+import importlib
 import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import aiosqlite
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from scripts import logger
+_real_connect = importlib.import_module("aiosqlite").connect
+
+from scripts import logger  # noqa: E402
 
 
 @patch("scripts.logger.os.path.exists", return_value=True)
@@ -35,7 +37,7 @@ async def test_gcs_proxy_content_type_fallback(mock_client,
         transport=transport, base_url="http://test"
     ) as client:
         res = await client.get("/uploads/test.dat")
-        assert res.status_code == 200
+        assert res.status_code == 200  # noqa: PLR2004
         assert res.headers["content-type"] == "application/octet-stream"
 
 
@@ -51,11 +53,11 @@ async def test_gcs_proxy_internal_error(mock_client, mock_exists) -> None:
         transport=transport, base_url="http://test"
     ) as client:
         res = await client.get("/uploads/shouldfail.jpg")
-        assert res.status_code == 500
+        assert res.status_code == 500  # noqa: PLR2004
 
 
 @pytest.mark.asyncio
-async def test_search_query_logic(tmp_path) -> None:
+async def test_search_query_logic(tmp_path: logger.Path) -> None:
     # Create dummy image and thumbnail files
     (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
     (tmp_path / "test.jpg.thumb.jpg").write_bytes(b"\xff\xd8\xff")
@@ -63,7 +65,7 @@ async def test_search_query_logic(tmp_path) -> None:
     # Set up the test DB
     db_path = tmp_path / "metadata.db"
     logger.BACKUP_DB_PATH = db_path
-    async with aiosqlite.connect(db_path) as db:
+    async with _real_connect(db_path) as db:
         await db.execute(
             "CREATE TABLE images "
             "(id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
@@ -82,27 +84,25 @@ async def test_search_query_logic(tmp_path) -> None:
         await db.execute("INSERT INTO image_tags VALUES (1, 1, 1)")
         await db.commit()
 
-    real_connect = aiosqlite.connect
+    async def patched_connect(path, *args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        del path    # Unused
+        return await _real_connect(db_path, *args, **kwargs)
 
     with (
         patch("scripts.logger.UPLOAD_DIR", tmp_path),
-        patch("scripts.logger.aiosqlite.connect") as mock_connect,
+        patch("scripts.logger.aiosqlite.connect", side_effect=patched_connect),
     ):
-        mock_connect.side_effect = lambda path, *a, **kw: real_connect(
-            db_path, *a, **kw
-        )
-
         transport = ASGITransport(app=logger.app)
         async with AsyncClient(
             transport=transport, base_url="http://test"
         ) as client:
             res = await client.get("/search?q=power")
-            assert res.status_code == 200
+            assert res.status_code == 200  # noqa: PLR2004
             assert "/uploads/thumb/test.jpg.thumb.jpg" in res.text
 
 
 @pytest.mark.asyncio
-async def test_cleanup_old_backups(tmp_path) -> None:
+async def test_cleanup_old_backups(tmp_path: logger.Path) -> None:
     old_file = tmp_path / "backup-2000-01-01.sqlite3"
     old_file.write_text("x")
     old_time = datetime.now(timezone.utc) - timedelta(days=365)

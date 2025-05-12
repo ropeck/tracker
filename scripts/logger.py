@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from os import getenv
 from pathlib import Path
-from typing import Annotated, BinaryIO
+from typing import Annotated, BinaryIO, NoReturn
 
 import aiofiles  # make sure this is imported
 import aiosqlite
@@ -313,12 +313,12 @@ async def gcs_proxy(path: str, request: Request) -> JSONResponse:
 
     This endpoint proxies a file from GCS using the given path and returns it as
     a streamed response, preserving the original content type and filename. If
-    the file does not exist, a 404 response is returned. If an error occurs 
+    the file does not exist, a 404 response is returned. If an error occurs
     while accessing GCS, a 500 response is returned with error details.
 
     Args:
         path (str): Path under the GCS upload prefix to the requested file.
-        request (Request): The incoming FastAPI request object (unused but 
+        request (Request): The incoming FastAPI request object (unused but
             required for route context).
 
     Returns:
@@ -326,12 +326,14 @@ async def gcs_proxy(path: str, request: Request) -> JSONResponse:
             headers if found.
         JSONResponse: 404 if file not found, or 500 on internal error.
     """
+    del request  # unused arg
+
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
     logging.info(f"📦 GCS proxy requested: {gcs_path}")
 
     try:
         key_path = "/app/service-account-key.json"
-        if os.path.exists(key_path):
+        if Path(key_path).exists():
             client = storage.Client.from_service_account_json(key_path)
         else:
             client = storage.Client()  # ADC fallback
@@ -375,7 +377,7 @@ async def protected_upload(
     request: Request,
     upload: Annotated[UploadFile, File()] = ...,
     label: Annotated[str, Form()] = "",
-    user: dict = Depends(get_current_user),
+    user: dict = Annotated[str, Depends(get_current_user)],  # noqa: B008
 ) -> JSONResponse:
     """Enqueue file uploads from authenticated users for processing."""
     if not user:
@@ -427,15 +429,15 @@ Reply with a JSON array of tag names. For example:
         tags = json.loads(response)
         if isinstance(tags, list):
             return [clean_tag_name(tag) for tag in tags if isinstance(tag, str)]
-    except Exception as e:
-        log.warning(f"AI response parsing failed: {e} -- raw: {response}")
+    except Exception:
+        log.exception(f"AI response parsing failed. raw: {response}")
     return []
 
 
 @app.get("/photos", response_class=HTMLResponse)
 async def view_photos(
     request: Request, db: Annotated[aiosqlite.Connection, Depends(get_db)]
-):
+) -> HTMLResponse:
     """Render the photo gallery view with associated tags and timestamps."""
     cursor = await db.execute(
         """
@@ -465,10 +467,8 @@ async def view_photos(
 
 
 @app.get("/search", response_class=HTMLResponse)
-async def search_photos(request: Request, q: str = ""):
-    """Search photos by matching tags from a query string and display
-    results.
-    """
+async def search_photos(request: Request, q: str = "") -> HTMLResponse:
+    """Search photos by tags from a query string and display results."""
     query = q.strip().lower()
     async with aiosqlite.connect("uploads/metadata.db") as db:
         tag_cursor = await db.execute(
@@ -488,7 +488,7 @@ async def search_photos(request: Request, q: str = ""):
             clean_tag = clean_tag_name(row[0])
             if clean_tag and clean_tag not in BLOCKED_TAGS:
                 top_tags.append(clean_tag)
-            if len(top_tags) >= 10:
+            if len(top_tags) >= 10:  # noqa: PLR2004
                 break
 
         cursor = await db.execute(
@@ -525,7 +525,7 @@ async def search_photos(request: Request, q: str = ""):
 @app.post("/search/query", response_class=HTMLResponse)
 async def search_by_prompt(
     request: Request, db: Annotated[aiosqlite.Connection, Depends(get_db)]
-):
+) -> HTMLResponse:
     """Search photos using a free-form prompt interpreted by the AI model.
 
     Args:
@@ -586,7 +586,7 @@ async def trigger_backup(
     request: Request,
     user: Annotated[dict, Depends(get_current_user)],
     credentials: Annotated[HTTPAuthorizationCredentials, Security(auth_scheme)],
-):
+) -> HTMLResponse:
     """Trigger a backup of the current metadata DB to GCS.
 
     Authorization is enforced via OAuth2 user or Kubernetes service account.
@@ -599,6 +599,8 @@ async def trigger_backup(
     Returns:
         JSON result indicating success or skipped backup.
     """
+    del request  # unused arg
+
     allowed_users = [
         email.strip()
         for email in os.getenv("ALLOWED_USER_EMAILS", "").split(",")
@@ -630,31 +632,36 @@ async def trigger_backup(
                 status_code=403, detail="Missing Authorization token"
             )
 
-        try:
-            info = jwt.decode(token, verify=False)
-            subject = info.get("sub")
-            if subject in allowed_sas:
-                log.info(
-                    f"✅ Authenticated service account '{subject}' "
-                    "allowed to trigger backup"
-                )
-            else:
-                log.warning(f"❌ Service account '{subject}' not in allowlist")
-                raise HTTPException(
-                    status_code=403, detail="Unauthorized service account"
-                )
-        except Exception as e:
-            log.warning(f"❌ JWT decode error: {e}")
-            raise HTTPException(
-                status_code=403, detail="Invalid service account token"
-            )
+    def _unauthorized(subject: str) -> NoReturn:
+        raise HTTPException(
+            status_code=403, detail=f"Unauthorized service account: {subject}"
+        )
+
+    def _invalid_token_error(e: Exception) -> NoReturn:
+        raise HTTPException(status_code=403,
+                            detail="Invalid service account token") from e
+
+    try:
+        info = jwt.decode(token, verify=False)
+        subject = info.get("sub")
+        if subject not in allowed_sas:
+            log.warning(f"❌ Service account '{subject}' not in allowlist")
+            _unauthorized(subject)
+
+        log.info(
+            f"✅ Authenticated service account '{subject}' allowed "
+            "to trigger backup"
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning(f"❌ JWT decode error: {e}")
+        _invalid_token_error(e)
 
     return await perform_backup()
 
 
-async def perform_backup():
-    """Perform a snapshot backup of the SQLite DB to a local file and upload to
-    GCS.
+
+async def perform_backup() -> str:
+    """Backup DB  and upload to GCS.
 
     Returns:
         JSON result containing the backup status and path.
@@ -666,24 +673,24 @@ async def perform_backup():
     if not BACKUP_DB_PATH.exists():
         raise HTTPException(status_code=500, detail="No DB to back up")
 
-    async with aiosqlite.connect(BACKUP_DB_PATH) as src_db:
-        async with aiosqlite.connect(backup_path) as dest_db:
-            await src_db.backup(dest_db)
+    async with (aiosqlite.connect(BACKUP_DB_PATH) as src_db,
+        aiosqlite.connect(backup_path) as dest_db):
+        await src_db.backup(dest_db)
 
     if backup_path.exists():
-        with open(BACKUP_DB_PATH, "rb") as f:
-            current_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324
-        with open(backup_path, "rb") as f:
-            backup_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324
+        with Path.open(BACKUP_DB_PATH, "rb") as f:
+            current_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324  # noqa: S324
+        with Path.open(backup_path, "rb") as f:
+            backup_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324  # noqa: S324
         if current_hash == backup_hash:
             log.info("📦 No DB changes since last backup. Skipping upload.")
             return {"status": "skipped", "reason": "No changes detected."}
 
     log.info(f"📦 DB backup created: {backup_filename}")
-    with open(backup_path, "rb") as f:
+    with Path.open(backup_path, "rb") as f:
         gcs_path = f"db-backups/{backup_filename}"
         upload_file_to_gcs(GCS_BUCKET, gcs_path, f)
-        return None
+    return {"status": "ok", "path": gcs_path}
 
 
 async def cleanup_old_backups() -> None:
@@ -707,9 +714,9 @@ async def cleanup_old_backups() -> None:
         if kept < MIN_BACKUPS:
             kept += 1
             continue
-        if os.path.getmtime(path) < cutoff:
+        if Path(path).stat().st_mtime < cutoff:
             log.info(f"🧹 Removing old backup: {path}")
             try:
-                path.unlink()
-            except Exception as e:
-                log.warning(f"Could not delete {path}: {e}")
+                Path(path).unlink()
+            except Exception:
+                log.exception(f"Could not delete {path}")

@@ -2,6 +2,9 @@
 
 import os
 import tempfile
+from collections.abc import AsyncGenerator
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import aiosqlite
@@ -13,14 +16,14 @@ from scripts.db import get_db
 
 
 @pytest_asyncio.fixture
-async def temp_db(monkeypatch):
+async def temp_db(monkeypatch) -> AsyncGenerator[Any, Any]:
     """Set up a temporary sqlite DB for testing."""
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     monkeypatch.setattr(db_module, "DB_PATH", path)
     await db_module.init_db("scripts/schema.sql")
     yield path
-    os.remove(path)
+    Path(path).unlink()
 
 
 @pytest.mark.asyncio

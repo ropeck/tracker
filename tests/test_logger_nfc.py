@@ -31,7 +31,7 @@ def test_log_tag_appends_multiple_entries(tmp_path, monkeypatch) -> None:
     logger_nfc.log_tag("tag2", location="desk")
 
     lines = log_path.read_text().splitlines()
-    assert len(lines) == 2
+    assert len(lines) == 2  # noqa: PLR2004
 
     entry1 = json.loads(lines[0])
     entry2 = json.loads(lines[1])
