@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import mimetypes
 import os
 import shutil
 from collections.abc import AsyncGenerator
@@ -22,12 +23,18 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     Security,
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -267,18 +274,77 @@ async def unauthorized() -> str:
             "user only.</p>")
 
 
+@app.get("/rebuild", response_class=HTMLResponse)
+async def manual_rebuild(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    force: str = Query(default="false"),
+) -> HTMLResponse:
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    force_flag = force.strip().lower() not in ("", "0", "false", "no", "off")
+
+    await rebuild_db_from_gcs(
+        bucket_name=GCS_BUCKET, prefix=GCS_UPLOAD_PREFIX, force=force_flag
+    )
+    return templates.TemplateResponse(request, "rebuild.html")
+
+@app.get("/uploads/{path:path}")
+async def gcs_proxy(path: str, request: Request):
+    gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
+    logging.info(f"📦 GCS proxy requested: {gcs_path}")
+
+    try:
+        key_path = "/app/service-account-key.json"
+        if os.path.exists(key_path):
+            client = storage.Client.from_service_account_json(key_path)
+        else:
+            client = storage.Client()  # ADC fallback
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(gcs_path)
+
+        if not blob.exists():
+            logging.warning(f"❌ GCS file not found: {gcs_path}")
+            return JSONResponse(
+                status_code=404, content={"error": "File not found", "path": gcs_path}
+            )
+
+        stream = blob.open("rb")
+
+        content_type = blob.content_type
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(path)
+        if not content_type:
+            content_type = "application/octet-stream"  # fallback
+
+        return StreamingResponse(
+            stream,
+            media_type=content_type,
+            headers={"Content-Disposition": f'inline; filename="{path}"'},
+        )
+    except Exception as e:
+        logging.exception(f"🔥 Error serving GCS file: {gcs_path}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal error accessing GCS",
+                "message": str(e),
+                "path": gcs_path,
+            },
+        )
+        
 @app.post("/upload")
 async def protected_upload(
     request: Request,
     upload: Annotated[UploadFile, File()] = ...,
     label: Annotated[str, Form()] = "",
     user: dict = Depends(get_current_user),
-):
-    """Handle file uploads from authenticated users and enqueue them for
-    processing.
-    """
+) -> JSONResponse:
+    """Enqueue file uploads from authenticated users for processing."""
     if not user:
         return RedirectResponse("/login", status_code=302)
+    del request  # unused arg
 
     timestamp = utc_now_iso()
     filename = f"{timestamp.replace(':', '-')}_{upload.filename}"
