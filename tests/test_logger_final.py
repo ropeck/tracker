@@ -61,7 +61,9 @@ async def test_gcs_proxy_file_found(
             del name
             return FakeBucket()
 
-    mock_from_json.return_value = FakeClient()
+    fake_client = FakeClient()
+    mock_from_json.return_value = fake_client
+    mock_client.return_value = fake_client
 
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
