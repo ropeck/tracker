@@ -1,3 +1,4 @@
+aiofiles
 aiosqlite
 authlib
 dotenv
