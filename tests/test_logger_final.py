@@ -10,8 +10,9 @@ if TYPE_CHECKING:
 
     import aiosqlite
 
+from io import BytesIO
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -31,25 +32,42 @@ async def test_lifespan_runs(mock_worker, mock_client, mock_exists) -> None:
         mock_worker.assert_called_once()
 
 
+
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_content_type_fallback(mock_client,
-                                               mock_exists) -> None:
-    blob = MagicMock()
-    blob.exists.return_value = True
-    blob.open.return_value = MagicMock()
-    blob.content_type = None
-    mock_client.return_value.bucket.return_value.blob.return_value = blob
+async def test_gcs_proxy_file_found(mock_from_json, mock_exists) -> None:
+    class FakeBlob:
+        def exists(self) -> bool:
+            return True
+
+        def open(self, mode: str = "rb") -> BytesIO:
+            del mode
+            return BytesIO(b"test content")
+
+        @property
+        def content_type(self) -> str:
+            return "image/jpeg"
+
+    class FakeBucket:
+        def blob(self, name: str) -> FakeBlob:
+            del name
+            return FakeBlob()
+
+    class FakeClient:
+        def bucket(self, name: str) -> FakeBucket:
+            del name
+            return FakeBucket()
+
+    mock_from_json.return_value = FakeClient()
 
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client:
-        res = await client.get("/uploads/test.dat")
+        transport=transport, base_url="http://test") as client:
+        res = await client.get("/uploads/test.jpg")
         assert res.status_code == 200  # noqa: PLR2004
-        assert res.headers["content-type"] == "application/octet-stream"
-
+        assert res.headers["content-type"] == "image/jpeg"
+        assert res.content == b"test content"
 
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
