@@ -1,5 +1,4 @@
 import json
-import os
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
@@ -123,13 +122,23 @@ async def test_search_query_response(mock_call, tmp_path) -> None:
 
 @pytest.mark.asyncio
 @patch("scripts.logger.upload_file_to_gcs")
-async def test_backup_now_success(mock_upload, tmp_path) -> None:
+@patch("scripts.logger.os.getenv")
+async def test_backup_now_success(mock_getenv, mock_upload, tmp_path) -> None:
+    # Return the user allowlist and service account allowlist
+    def getenv_side_effect(key: str, default: str="") -> str:
+        if key == "ALLOWED_USER_EMAILS":
+            return "fogcat5@gmail.com"
+        if key == "ALLOWED_SERVICE_ACCOUNT_IDS":
+            return ""
+        return default
+
+    mock_getenv.side_effect = getenv_side_effect
+
     logger.app.dependency_overrides[get_current_user] = lambda: {
         "email": "fogcat5@gmail.com"
     }
-    os.environ["ALLOWED_USER_EMAILS"] = "fogcat5@gmail.com"
-    test_db_path = tmp_path / "test.db"
 
+    test_db_path = tmp_path / "test.db"
     with patch("scripts.config.BACKUP_DB_PATH", test_db_path):
         async for db in get_db():
             await db.commit()
@@ -141,9 +150,8 @@ async def test_backup_now_success(mock_upload, tmp_path) -> None:
     async with AsyncClient(
         transport=transport, base_url="http://test"
     ) as client:
-        with patch(
-            "scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"
-        ):
+        with patch("scripts.logger.utc_now_iso",
+                   return_value="2025-05-07T00:00:00"):
             res = await client.get("/backup-now")
             assert res.status_code == 200  # noqa: PLR2004
             assert mock_upload.called

@@ -65,7 +65,7 @@ async def rebuild_db_from_gcs(
         force (bool, optional): If True, forces a rebuild even if the DB exists.
         since_timestamp (str, optional): Only process files newer than this.
     """
-    if not since_timestamp and not should_rebuild_db(force):
+    if not since_timestamp and not should_rebuild_db(force=force):
         return
 
     logger.info("🔁 Starting rebuild from GCS...")

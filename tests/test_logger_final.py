@@ -1,6 +1,16 @@
+from __future__ import annotations
+
 import importlib
 import os
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import aiosqlite
+
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -84,13 +94,29 @@ async def test_search_query_logic(tmp_path: logger.Path) -> None:
         await db.execute("INSERT INTO image_tags VALUES (1, 1, 1)")
         await db.commit()
 
-    async def patched_connect(path, *args, **kwargs):  # noqa: ANN002, ANN003, ANN202
-        del path    # Unused
-        return await _real_connect(db_path, *args, **kwargs)
+    class FakeDB:
+        def __init__(self, db_path: Path) -> None:
+            self.db_path = db_path
+            self.conn: aiosqlite.Connection | None = None
+
+        async def __aenter__(self) -> aiosqlite.Connection:
+            self.conn = await _real_connect(self.db_path)
+            return self.conn
+
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: Any | None,  # noqa: ANN401, PYI036
+        ) -> None:
+            await self.conn.close()
+
+    def patched_connect(path: str, *args: Any, **kwargs: Any) -> FakeDB:  # noqa: ANN401
+        return FakeDB(db_path)
 
     with (
         patch("scripts.logger.UPLOAD_DIR", tmp_path),
-        patch("scripts.logger.aiosqlite.connect", side_effect=patched_connect),
+        patch("scripts.logger.aiosqlite.connect", new=patched_connect),
     ):
         transport = ASGITransport(app=logger.app)
         async with AsyncClient(

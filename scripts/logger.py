@@ -622,9 +622,9 @@ async def trigger_backup(
             log.info(
                 f"✅ Authenticated user '{email}' allowed to trigger backup"
             )
-        else:
-            log.warning(f"❌ User '{email}' not in allowlist")
-            raise HTTPException(status_code=403, detail="Unauthorized user")
+            return await perform_backup()
+        log.warning(f"❌ User '{email}' not in allowlist")
+        raise HTTPException(status_code=403, detail="Unauthorized user")
     else:
         token = credentials.credentials if credentials else None
         if not token:

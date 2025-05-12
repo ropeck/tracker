@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiosqlite
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from scripts import logger
@@ -98,7 +98,7 @@ def test_upload_file_to_gcs_mocked(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_trigger_backup_no_db() -> None:
     with patch("scripts.logger.BACKUP_DB_PATH", Path("nonexistent.db")):  # noqa: SIM117
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(HTTPException, match="No DB to back up"):
             await logger.perform_backup()
 
 
