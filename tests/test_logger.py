@@ -14,14 +14,15 @@ def app():
 
 
 @pytest.mark.asyncio
-async def test_healthz_ok(tmp_path) -> None:
+async def test_healthz_ok(tmp_path: Path) -> None:
     db_path = tmp_path / "metadata.db"
     db_path.write_text("")  # touch file
     logger.BACKUP_DB_PATH = db_path
 
     async with logger.aiosqlite.connect(db_path) as db:
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT)"
+            "CREATE TABLE IF NOT EXISTS images "
+            "(id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT)"
         )
         await db.execute(
             "INSERT INTO images (timestamp) VALUES ('2025-05-07T12:00:00')"
@@ -62,7 +63,7 @@ async def test_process_image_success(
     mock_ai,
     mock_upload,
     mock_open,
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     file_path = tmp_path / "test_image.jpg"
     file_path.write_bytes(b"\xff\xd8\xff")  # Minimal JPEG header
@@ -76,7 +77,7 @@ async def test_process_image_success(
     assert mock_add.called
 
 
-def test_upload_file_to_gcs_mocked(tmp_path) -> None:
+def test_upload_file_to_gcs_mocked(tmp_path: Path) -> None:
     f = tmp_path / "mock.txt"
     f.write_text("dummy")
     with f.open("rb") as fh:
@@ -84,7 +85,9 @@ def test_upload_file_to_gcs_mocked(tmp_path) -> None:
             "scripts.logger.storage.Client.from_service_account_json"
         ) as mock_from_json:
             mock_blob = MagicMock()
-            mock_from_json.return_value.bucket.return_value.blob.return_value = mock_blob
+            mock_from_json.return_value \
+                .bucket.return_value \
+                    .blob.return_value = mock_blob
 
             path = logger.upload_file_to_gcs("my-bucket", "dest.txt", fh)
 
@@ -111,22 +114,26 @@ async def test_unauthorized_page() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_photos_route_runs(tmp_path) -> None:
+async def test_get_photos_route_runs(tmp_path: Path) -> None:
     db_path = tmp_path / "test.db"
 
     async def override_get_db():
         async with aiosqlite.connect(db_path) as db:
             await db.execute(
-                "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
+                "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, "
+                "filename TEXT, timestamp TEXT)"
             )
             await db.execute(
-                "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT)"
+                "CREATE TABLE IF NOT EXISTS tags "
+                "(id INTEGER PRIMARY KEY, name TEXT)"
             )
             await db.execute(
-                "CREATE TABLE IF NOT EXISTS image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
+                "CREATE TABLE IF NOT EXISTS image_tags "
+                "(id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
             )
             await db.execute(
-                "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
+                "INSERT INTO images (filename, timestamp) "
+                "VALUES ('file1.jpg', '2025-05-07T12:00:00')"
             )
             await db.commit()
             yield db

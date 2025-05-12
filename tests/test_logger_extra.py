@@ -81,16 +81,20 @@ async def test_search_query_response(mock_call, tmp_path) -> None:
 
     async with aiosqlite.connect(db_path) as db:
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
+            "CREATE TABLE IF NOT EXISTS images "
+            "(id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
         )
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, name TEXT)"
+            "CREATE TABLE IF NOT EXISTS tags "
+            "(id INTEGER PRIMARY KEY, name TEXT)"
         )
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
+            "CREATE TABLE IF NOT EXISTS image_tags "
+            "(id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
         )
         await db.execute(
-            "INSERT INTO images (filename, timestamp) VALUES ('file1.jpg', '2025-05-07T12:00:00')"
+            "INSERT INTO images (filename, timestamp) "
+            "VALUES ('file1.jpg', '2025-05-07T12:00:00')"
         )
         await db.commit()
 

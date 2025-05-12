@@ -84,11 +84,12 @@ async def rebuild_db_from_gcs(
                     b for b in blobs if b.updated.astimezone(UTC) > cutoff_dt
                 ]
                 logging.info(
-                    f"🔍 Filtered to {len(blobs)} summary files after {since_timestamp}"
+                    f"🔍 Filtered to {len(blobs)} summary files "
+                    "after {since_timestamp}"
                 )
-            except Exception as e:
-                logging.warning(
-                    f"⚠️ Failed to parse since_timestamp '{since_timestamp}': {e}"
+            except Exception:
+                logging.exception(
+                    f"⚠️ Failed to parse since_timestamp '{since_timestamp}'"
                 )
 
         for blob in blobs:

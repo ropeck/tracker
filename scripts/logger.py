@@ -58,7 +58,8 @@ log.setLevel(logging.INFO)
 
 handler = logging.StreamHandler()
 formatter = logging.Formatter(
-    "%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
@@ -84,7 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handles startup and shutdown tasks for the FastAPI app."""
     global upload_worker_task  # noqa: PLW0603
 
-    del app   # unused arg
+    del app  # unused arg
     upload_worker_task = asyncio.create_task(process_uploads())
     log.info("🚀 Upload processing queue started.")
 
@@ -184,6 +185,7 @@ async def health_check() -> JSONResponse:
 
 app.mount("/static", StaticFiles(directory="scripts/static"), name="static")
 
+
 async def process_image(upload_info: tuple) -> None:
     """Process an uploaded image file.
 
@@ -244,8 +246,9 @@ async def process_image(upload_info: tuple) -> None:
         log.exception("Error processing %s", filename)
 
 
-def upload_file_to_gcs(bucket_name: str, destination_blob_name: str,
-                       file_obj: BinaryIO) -> str:
+def upload_file_to_gcs(
+    bucket_name: str, destination_blob_name: str, file_obj: BinaryIO
+) -> str:
     """Store an image file in GCS bucket.
 
     Args:
@@ -254,7 +257,8 @@ def upload_file_to_gcs(bucket_name: str, destination_blob_name: str,
         file_obj (file): File object to upload.
     """
     client = storage.Client.from_service_account_json(
-        "/app/service-account-key.json")
+        "/app/service-account-key.json"
+    )
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     blob.upload_from_file(file_obj, rewind=True)
@@ -270,16 +274,28 @@ async def index(request: Request) -> HTMLResponse:
 @app.get("/unauthorized", response_class=HTMLResponse)
 async def unauthorized() -> str:
     """Return a simple 403 Forbidden message for unauthorized access."""
-    return ("<h1>403 Forbidden</h1><p>This app is restricted to the authorized "
-            "user only.</p>")
+    return (
+        "<h1>403 Forbidden</h1><p>This app is restricted to the authorized "
+        "user only.</p>"
+    )
 
 
 @app.get("/rebuild", response_class=HTMLResponse)
 async def manual_rebuild(
     request: Request,
-    user: dict = Depends(get_current_user),
-    force: str = Query(default="false"),
+    user: Annotated[dict, Depends(get_current_user)],
+    force: Annotated[str, Query()] = "false",
 ) -> HTMLResponse:
+    """Build sqlite db using GCS summary.txt file.
+
+    Args:
+        request (Request): _description_
+        user (dict, optional): Defaults Depends(get_current_user).
+        force (str, optional): Defaults Query(default="false").
+
+    Returns:
+        HTMLResponse: html page with results
+    """
     if not user:
         return RedirectResponse("/login", status_code=302)
 
@@ -290,8 +306,26 @@ async def manual_rebuild(
     )
     return templates.TemplateResponse(request, "rebuild.html")
 
+
 @app.get("/uploads/{path:path}")
-async def gcs_proxy(path: str, request: Request):
+async def gcs_proxy(path: str, request: Request) -> JSONResponse:
+    """Serves uploaded files from a GCS bucket via streaming.
+
+    This endpoint proxies a file from GCS using the given path and returns it as
+    a streamed response, preserving the original content type and filename. If
+    the file does not exist, a 404 response is returned. If an error occurs 
+    while accessing GCS, a 500 response is returned with error details.
+
+    Args:
+        path (str): Path under the GCS upload prefix to the requested file.
+        request (Request): The incoming FastAPI request object (unused but 
+            required for route context).
+
+    Returns:
+        StreamingResponse: Streamed file contents with correct MIME type and
+            headers if found.
+        JSONResponse: 404 if file not found, or 500 on internal error.
+    """
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
     logging.info(f"📦 GCS proxy requested: {gcs_path}")
 
@@ -307,7 +341,8 @@ async def gcs_proxy(path: str, request: Request):
         if not blob.exists():
             logging.warning(f"❌ GCS file not found: {gcs_path}")
             return JSONResponse(
-                status_code=404, content={"error": "File not found", "path": gcs_path}
+                status_code=404,
+                content={"error": "File not found", "path": gcs_path},
             )
 
         stream = blob.open("rb")
@@ -333,7 +368,8 @@ async def gcs_proxy(path: str, request: Request):
                 "path": gcs_path,
             },
         )
-        
+
+
 @app.post("/upload")
 async def protected_upload(
     request: Request,
@@ -371,14 +407,13 @@ async def protected_upload(
 
 
 async def get_tags_from_prompt(prompt: str, all_tags: list[str]) -> list[str]:
-    """Send a natural language query to the OpenAI API and return matched
-    tags.
-    """
+    """Send OpenAI API query and return matched tags."""
     tag_str = ", ".join(sorted(set(all_tags)))
     system_prompt = f"""
 You are a helpful assistant for organizing home inventory items.
 
-The user will ask a question like "Show photos with power cables" or "Where is the audio gear?"
+The user will ask a question like "Show photos with power cables" or
+"Where is the audio gear?"
 
 Given their query, return the most relevant tags from this list:
 {tag_str}
@@ -600,12 +635,11 @@ async def trigger_backup(
             subject = info.get("sub")
             if subject in allowed_sas:
                 log.info(
-                    f"✅ Authenticated service account '{subject}' allowed to trigger backup"
+                    f"✅ Authenticated service account '{subject}' "
+                    "allowed to trigger backup"
                 )
             else:
-                log.warning(
-                    f"❌ Service account '{subject}' not in allowlist"
-                )
+                log.warning(f"❌ Service account '{subject}' not in allowlist")
                 raise HTTPException(
                     status_code=403, detail="Unauthorized service account"
                 )

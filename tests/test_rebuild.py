@@ -11,7 +11,8 @@ from scripts.rebuild import should_rebuild_db
 
 @pytest.mark.asyncio
 @patch("scripts.rebuild.storage.Client")
-async def test_restore_returns_false_when_no_snapshots(mock_storage_client) -> None:
+async def test_restore_returns_false_when_no_snapshots(mock_storage_client
+                                                       ) -> None:
     bucket_mock = MagicMock()
     bucket_mock.list_blobs.return_value = []
     mock_storage_client.return_value.bucket.return_value = bucket_mock
@@ -96,7 +97,9 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     assert mock_link.call_count == 2  # One for each tag
 
 
-def test_should_rebuild_db_with_force_env(tmp_path, monkeypatch) -> None:
+def test_should_rebuild_db_with_force_env(tmp_path: Path,
+                                          monkeypatch: pytest.MonkeyPatch
+                                          ) -> None:
     dummy_db = tmp_path / "metadata.db"
     dummy_db.touch()
     monkeypatch.setattr("scripts.rebuild.DB_PATH", dummy_db)
@@ -129,13 +132,15 @@ def test_should_rebuild_db_with_force() -> None:
     assert should_rebuild_db(force=True) is True
 
 
-def test_should_rebuild_db_from_env(monkeypatch) -> None:
+def test_should_rebuild_db_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FORCE_REBUILD", "yes")
     assert should_rebuild_db() is True
 
 
 @pytest.mark.asyncio
-async def test_should_rebuild_db_when_db_exists(tmp_path, monkeypatch) -> None:
+async def test_should_rebuild_db_when_db_exists(tmp_path: Path,
+                                                monkeypatch: pytest.MonkeyPatch
+                                                ) -> None:
     dummy_db = tmp_path / "metadata.db"
     dummy_db.touch()
 
@@ -146,8 +151,10 @@ async def test_should_rebuild_db_when_db_exists(tmp_path, monkeypatch) -> None:
     assert await rebuild.rebuild_db_from_gcs("my-bucket", "upload") is None
 
 
-def test_should_rebuild_db_when_no_db(monkeypatch) -> None:
-    non_existent = Path("/tmp/fake_metadata.db")
+def test_should_rebuild_db_when_no_db(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    non_existent = tmp_path / "fake_metadata.db"
     monkeypatch.setattr("scripts.rebuild.DB_PATH", non_existent)
     monkeypatch.delenv("FORCE_REBUILD", raising=False)
 
@@ -160,14 +167,14 @@ def test_should_rebuild_db_when_no_db(monkeypatch) -> None:
 @patch("scripts.rebuild.add_tag", new_callable=AsyncMock)
 @patch("scripts.rebuild.link_image_tag", new_callable=AsyncMock)
 @patch("scripts.rebuild.init_db", new_callable=AsyncMock)
-async def test_rebuild_skips_empty_summary(
+async def test_rebuild_skips_empty_summary( # noqa: PLR0913
     mock_init,
     mock_link,
     mock_add_tag,
     mock_add_image,
     mock_storage_client,
-    tmp_path,
-    monkeypatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     empty_blob = MagicMock()
     empty_blob.name = "upload/summary/empty_image.summary.txt"

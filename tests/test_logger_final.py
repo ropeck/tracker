@@ -22,7 +22,8 @@ async def test_lifespan_runs(mock_worker, mock_client, mock_exists) -> None:
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_content_type_fallback(mock_client, mock_exists) -> None:
+async def test_gcs_proxy_content_type_fallback(mock_client,
+                                               mock_exists) -> None:
     blob = MagicMock()
     blob.exists.return_value = True
     blob.open.return_value = MagicMock()
@@ -64,13 +65,15 @@ async def test_search_query_logic(tmp_path) -> None:
     logger.BACKUP_DB_PATH = db_path
     async with aiosqlite.connect(db_path) as db:
         await db.execute(
-            "CREATE TABLE images (id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
+            "CREATE TABLE images "
+            "(id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
         )
         await db.execute(
             "CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT)"
         )
         await db.execute(
-            "CREATE TABLE image_tags (id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
+            "CREATE TABLE image_tags "
+            "(id INTEGER PRIMARY KEY, image_id INTEGER, tag_id INTEGER)"
         )
         await db.execute(
             "INSERT INTO images VALUES (1, 'test.jpg', '2025-05-07T01:00:00')"

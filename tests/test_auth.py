@@ -43,7 +43,8 @@ async def test_login_redirect(mock_redirect, app_with_session) -> None:
     "scripts.auth.oauth.google.authorize_access_token", new_callable=AsyncMock
 )
 @patch("scripts.auth.oauth.google.userinfo", new_callable=AsyncMock)
-async def test_auth_success(mock_userinfo, mock_token, app_with_session) -> None:
+async def test_auth_success(mock_userinfo, mock_token, app_with_session
+                            ) -> None:
     mock_token.return_value = {
         "access_token": "abc123",
         "userinfo": {"email": ALLOWED_USER},
