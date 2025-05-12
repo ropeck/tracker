@@ -33,8 +33,10 @@ async def test_rebuild_route() -> None:
 
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
+@patch("scripts.logger.storage.Client")  # ✅ critical to mock ADC fallback
 @patch("scripts.logger.storage.Client.from_service_account_json")
-async def test_gcs_proxy_file_found(mock_from_json, mock_exists) -> None:
+async def test_gcs_proxy_file_found_other(
+    mock_from_json, mock_client, mock_exists) -> None:
     class FakeBlob:
         def exists(self) -> bool:
             return True
@@ -57,7 +59,9 @@ async def test_gcs_proxy_file_found(mock_from_json, mock_exists) -> None:
             del name
             return FakeBucket()
 
-    mock_from_json.return_value = FakeClient()
+    fake_client = FakeClient()
+    mock_from_json.return_value = fake_client
+    mock_client.return_value = fake_client
 
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
