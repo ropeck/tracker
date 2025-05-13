@@ -15,8 +15,7 @@ from scripts.config import BACKUP_DB_PATH
 DB_PATH = Path("uploads/metadata.db")
 
 
-
-async def init_db(schema_path: str="scripts/schema.sql") -> None:
+async def init_db(schema_path: str = "scripts/schema.sql") -> None:
     """Initialize the SQLite database using the provided schema file."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with aiofiles.open(schema_path) as f:
@@ -77,8 +76,7 @@ async def link_image_tag(filename: str, tag_name: str) -> None:
 
         if image and tag:
             await db.execute(
-                "INSERT OR IGNORE INTO image_tags (image_id, tag_id) "
-                "VALUES (?, ?)",
+                "INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)",  # noqa: E501
                 (image[0], tag[0]),
             )
             await db.commit()

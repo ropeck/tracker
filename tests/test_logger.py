@@ -9,12 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from scripts import logger
 
 
-@pytest.fixture
+@pytest.fixture()
 def app() -> FastAPI:
     return logger.app
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_healthz_ok(tmp_path: Path) -> None:
     db_path = tmp_path / "metadata.db"
     db_path.write_text("")  # touch file
@@ -39,7 +39,7 @@ async def test_healthz_ok(tmp_path: Path) -> None:
         assert res.json()["status"] == "ok"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_root_returns_template() -> None:
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
@@ -56,7 +56,7 @@ async def test_root_returns_template() -> None:
 @patch("scripts.logger.add_image", new_callable=AsyncMock)
 @patch("scripts.logger.add_tag", new_callable=AsyncMock)
 @patch("scripts.logger.link_image_tag", new_callable=AsyncMock)
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_process_image_success(  # noqa: PLR0913
     mock_link,
     mock_tag,
@@ -81,13 +81,16 @@ async def test_process_image_success(  # noqa: PLR0913
 def test_upload_file_to_gcs_mocked(tmp_path: Path) -> None:
     f = tmp_path / "mock.txt"
     f.write_text("dummy")
-    with (f.open("rb") as fh,
-          patch("scripts.logger.storage.Client.from_service_account_json"
-                ) as mock_from_json):
+    with (
+        f.open("rb") as fh,
+        patch(
+            "scripts.logger.storage.Client.from_service_account_json"
+        ) as mock_from_json,
+    ):
         mock_blob = MagicMock()
-        mock_from_json.return_value \
-            .bucket.return_value \
-                .blob.return_value = mock_blob
+        mock_from_json.return_value.bucket.return_value.blob.return_value = (
+            mock_blob
+        )
 
         path = logger.upload_file_to_gcs("my-bucket", "dest.txt", fh)
 
@@ -95,14 +98,16 @@ def test_upload_file_to_gcs_mocked(tmp_path: Path) -> None:
         assert mock_blob.upload_from_file.called
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_trigger_backup_no_db() -> None:
-    with patch("scripts.logger.BACKUP_DB_PATH", Path("nonexistent.db")):  # noqa: SIM117
-        with pytest.raises(HTTPException, match="No DB to back up"):
-            await logger.perform_backup()
+    with (
+        patch("scripts.logger.BACKUP_DB_PATH", Path("nonexistent.db")),
+        pytest.raises(HTTPException, match="No DB to back up"),
+    ):
+        await logger.trigger_backup()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_unauthorized_page() -> None:
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
@@ -113,7 +118,7 @@ async def test_unauthorized_page() -> None:
         assert "403" in res.text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_photos_route_runs(tmp_path: Path) -> None:
     db_path = tmp_path / "test.db"
 
@@ -124,8 +129,8 @@ async def test_get_photos_route_runs(tmp_path: Path) -> None:
                 "filename TEXT, timestamp TEXT)"
             )
             await db.execute(
-                "CREATE TABLE IF NOT EXISTS tags "
-                "(id INTEGER PRIMARY KEY, name TEXT)"
+                """CREATE TABLE IF NOT EXISTS tags
+                (id INTEGER PRIMARY KEY, name TEXT)"""
             )
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS image_tags "

@@ -37,9 +37,9 @@ def test_get_async_client_uses_env_key(mock_openai: MagicMock) -> None:
 @patch(
     "scripts.vision.encode_image_to_base64", return_value="base64-image-data"
 )
-def test_analyze_image_with_openai(mock_encode: MagicMock,
-                                   mock_openai: MagicMock,
-                                   mock_client:MagicMock) -> None:
+def test_analyze_image_with_openai(
+    mock_encode: MagicMock, mock_openai: MagicMock, mock_client: MagicMock
+) -> None:
     mock_response = MagicMock()
     mock_response.choices = [
         MagicMock(message=MagicMock(content="example: tag1, tag2"))
@@ -55,7 +55,7 @@ def test_analyze_image_with_openai(mock_encode: MagicMock,
     mock_client.chat.completions.create.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.vision.get_async_client")
 async def test_call_openai_chat_success(mock_get_client: MagicMock) -> None:
     # Setup mock client and mock .create call
@@ -78,10 +78,11 @@ async def test_call_openai_chat_success(mock_get_client: MagicMock) -> None:
     mock_create.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.vision.get_async_client")
-async def test_call_openai_chat_error(mock_get_client: MagicMock,
-                                      caplog:LogCaptureFixture) -> None:
+async def test_call_openai_chat_error(
+    mock_get_client: MagicMock, caplog: LogCaptureFixture
+) -> None:
     # Mock the client to raise an exception
     mock_client = MagicMock()
     mock_client.chat.completions.create = AsyncMock(

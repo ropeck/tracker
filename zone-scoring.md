@@ -48,4 +48,3 @@ Estimate which zones to clean based on:
 - Past user complaints or recurring clutter
 
 This helps prioritize high-reward cleanup with low time investment.
-

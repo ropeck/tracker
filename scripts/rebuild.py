@@ -53,7 +53,8 @@ def should_rebuild_db(*, force: bool = False) -> bool:
 
 async def rebuild_db_from_gcs(
     bucket_name: str,
-    prefix: str, *,
+    prefix: str,
+    *,
     force: bool = False,
     since_timestamp: str | None = None,
 ) -> None:
@@ -88,18 +89,18 @@ async def rebuild_db_from_gcs(
                 blobs = [
                     b for b in blobs if b.updated.astimezone(UTC) > cutoff_dt
                 ]
-                logging.info(
+                logger.info(
                     f"🔍 Filtered to {len(blobs)} summary files "
                     "after {since_timestamp}"
                 )
             except Exception:
-                logging.exception(
+                logger.exception(
                     f"⚠️ Failed to parse since_timestamp '{since_timestamp}'"
                 )
 
         for blob in blobs:
             filename = Path(blob.name).name.replace(".summary.txt", "")
-            logging.info(f"🔁 Processing {filename}")
+            logger.info(f"🔁 Processing {filename}")
             contents = blob.download_as_text()
 
             await add_image(filename, label="", timestamp=utc_now_iso())
@@ -109,9 +110,9 @@ async def rebuild_db_from_gcs(
                     await add_tag(tag)
                     await link_image_tag(filename, tag)
 
-        logging.info("✅ DB rebuilt from GCS summaries")
+        logger.info("✅ DB rebuilt from GCS summaries")
     except Exception:
-        logging.exception("🔥 Failed to rebuild DB from GCS")
+        logger.exception("🔥 Failed to rebuild DB from GCS")
 
 
 async def restore_db_from_gcs_snapshot(
@@ -134,21 +135,22 @@ async def restore_db_from_gcs_snapshot(
         sqlite_blobs = [b for b in blobs if b.name.endswith(".sqlite3")]
 
         if not sqlite_blobs:
-            logging.warning("❌ No SQLite snapshots found in GCS.")
+            logger.warning("❌ No SQLite snapshots found in GCS.")
             return False
 
         # Sort by timestamp in filename (e.g., backup-2025-05-05.sqlite3)
         def extract_date(blob: "Blob") -> datetime:  # noqa: UP037
             match = re.search(r"(\d{4}-\d{2}-\d{2})", blob.name)
             if match:
-                return datetime.strptime(match.group(1),
-                                         "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                return datetime.strptime(match.group(1), "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
             return datetime.min.replace(tzinfo=timezone.utc)
 
         sqlite_blobs.sort(key=extract_date, reverse=True)
         latest_blob = sqlite_blobs[0]
 
-        logging.info(f"📦 Restoring DB snapshot: {latest_blob.name}")
+        logger.info(f"📦 Restoring DB snapshot: {latest_blob.name}")
 
         # Download snapshot
         latest_blob.download_to_filename(DB_PATH)

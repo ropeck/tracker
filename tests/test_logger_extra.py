@@ -14,7 +14,7 @@ from scripts.db import get_db as logger_get_db
 from scripts.logger import get_current_user
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_rebuild_route() -> None:
     logger.app.dependency_overrides[get_current_user] = lambda: {
         "email": "fogcat5@gmail.com"
@@ -31,7 +31,7 @@ async def test_rebuild_route() -> None:
             assert mock_rebuild.called
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client")
 @patch("scripts.logger.storage.Client.from_service_account_json")
@@ -44,6 +44,7 @@ async def test_gcs_proxy_file_found_other(
             return True
 
         def open(self, mode="rb") -> BytesIO:
+            del mode
             return BytesIO(b"test content")
 
         @property
@@ -52,10 +53,12 @@ async def test_gcs_proxy_file_found_other(
 
     class FakeBucket:
         def blob(self, name: str) -> FakeBlob:
+            del name
             return FakeBlob()
 
     class FakeClient:
         def bucket(self, name: str) -> FakeBucket:
+            del name
             return FakeBucket()
 
     fake_client = FakeClient()
@@ -66,16 +69,17 @@ async def test_gcs_proxy_file_found_other(
 
     # Run the test
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/test.jpg")
 
-    assert res.status_code == 200
+    assert res.status_code == 200  # noqa: PLR2004
     assert res.headers["content-type"] == "image/jpeg"
     assert res.content == b"test content"
 
 
-
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.logger.storage.Client")
 @patch("pathlib.Path.exists", return_value=False)
 async def test_gcs_proxy_not_found(mock_os, mock_client) -> None:
@@ -102,7 +106,7 @@ def override_get_db(db_path: str) -> callable:
     return _get_db
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.logger.call_openai_chat", new_callable=AsyncMock)
 async def test_search_query_response(mock_call, tmp_path) -> None:
     db_path = tmp_path / "test.db"
@@ -114,8 +118,8 @@ async def test_search_query_response(mock_call, tmp_path) -> None:
             "(id INTEGER PRIMARY KEY, filename TEXT, timestamp TEXT)"
         )
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS tags "
-            "(id INTEGER PRIMARY KEY, name TEXT)"
+            """CREATE TABLE IF NOT EXISTS tags
+            (id INTEGER PRIMARY KEY, name TEXT)"""
         )
         await db.execute(
             "CREATE TABLE IF NOT EXISTS image_tags "
@@ -147,12 +151,12 @@ async def test_search_query_response(mock_call, tmp_path) -> None:
         assert "usb" in res.text or "audio" in res.text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.logger.upload_file_to_gcs")
 @patch("scripts.logger.os.getenv")
 async def test_backup_now_success(mock_getenv, mock_upload, tmp_path) -> None:
     # Return the user allowlist and service account allowlist
-    def getenv_side_effect(key: str, default: str="") -> str:
+    def getenv_side_effect(key: str, default: str = "") -> str:
         if key == "ALLOWED_USER_EMAILS":
             return "fogcat5@gmail.com"
         if key == "ALLOWED_SERVICE_ACCOUNT_IDS":
@@ -178,7 +182,8 @@ async def test_backup_now_success(mock_getenv, mock_upload, tmp_path) -> None:
         transport=transport, base_url="http://test"
     ) as client:
         with patch(
-            "scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"):
+            "scripts.logger.utc_now_iso", return_value="2025-05-07T00:00:00"
+        ):
             res = await client.get("/backup-now")
             assert res.status_code == 200  # noqa: PLR2004
             assert mock_upload.called

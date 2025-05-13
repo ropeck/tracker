@@ -58,6 +58,6 @@ Replace static speaker thumbnails or awkward webcams with expressive, animated a
 - No uncanny valley
 - Just expressive, useful meeting enhancements that make you smile
 
---- 
+---
 
 _Stanley is definitely watching. And judging. But also approving._

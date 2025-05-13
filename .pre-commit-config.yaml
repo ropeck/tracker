@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.3  # Use the latest version available
+    hooks:
+      - id: ruff
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        args: [--ignore-words=.codespell-ignore-words]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: ["--multi"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+
+#  - repo: local
+#    hooks:
+#      - id: pylint
+#        name: pylint
+#        entry: pylint
+#        language: system
+#        types: [python]
+#        require_serial: true
+#        args:
+#          - "--ignore=.venv,venv,tests"
+#          - "-rn"  # Only display messages
+#          - "-sn"  # Don't display the score
+#          - "--rcfile=.pylintrc"  # Optional: specify your pylint config file

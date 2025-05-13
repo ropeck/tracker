@@ -49,8 +49,7 @@ def analyze_image_with_openai(image_path: str) -> dict:
                     {
                         "type": "text",
                         "text": (
-                            "List the objects in this image for inventory "
-                            "as JSON."
+                            "List the objects in this image for inventory as JSON."  # noqa: E501
                         ),
                     },
                     {

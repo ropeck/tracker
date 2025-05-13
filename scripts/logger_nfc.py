@@ -1,4 +1,5 @@
 """logger.py — Read and log NFC tag scans."""
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 LOG_PATH = Path("data/log.json")
 
 
-def log_tag(tag_id: str, location: str="unknown") -> None:
+def log_tag(tag_id: str, location: str = "unknown") -> None:
     """Save the location of a tag.
 
     Args:

@@ -1,4 +1,5 @@
 """Check syntax of all python code by importing all modules."""
+
 import importlib
 import pathlib
 

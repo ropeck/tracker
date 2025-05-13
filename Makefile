@@ -77,6 +77,15 @@ spell:
 
 # Run Ruff lint + formatter
 format:
+	echo "docformatter"
 	docformatter --in-place --wrap-summaries 80 --wrap-descriptions 80 -r $(SRC_DIR) --exclude venv
+	echo "ruff check"
 	ruff check $(SRC_DIR)
+	echo "ruff format"
 	ruff format $(SRC_DIR)
+
+format-fix:
+	ruff format --fix $(SRC_DIR)
+
+pre-commit:
+	pre-commit run --all-files -v

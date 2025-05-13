@@ -51,7 +51,7 @@ We all accumulate gear, cables, tools, and sentimental objects that eventually b
 - `/data/` – (Reserved) for structured object metadata and tag maps
 - `/docs/` – Planning, vision, usage notes, and changelogs
 
-## 📈 Upload Flow 
+## 📈 Upload Flow
 
 
 ```mermaid
@@ -236,8 +236,8 @@ You’re in a perfect spot to transition from flat storage to a real search-capa
 ---
 
 ### 🍻 Vibe of the Day
-- Dev soundtrack: **Anderson .Paak** – *"Come Down"*  
-- Beer of victory: **Discretion Local Lion West Coast IPA**  
+- Dev soundtrack: **Anderson .Paak** – *"Come Down"*
+- Beer of victory: **Discretion Local Lion West Coast IPA**
 - ✨ Feeling: "**Professional web developer... but doing it for free.**"
 
 ---

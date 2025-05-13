@@ -118,7 +118,7 @@ Next up: background queue for post-upload AI tasks (e.g., refinement pass, brand
 * Version **v0.6.2** deployed to `prod`
 * System stable, responsive, and fully functional
 * Celebrated with a Moon Time Hazy IPA from Morgan Territory Brewing
-  
+
 ## ✅ 2025-05-05 – GCS Backup Trigger & Auth Control
 
 🆕 **New Feature: Manual + Automated DB Backups**

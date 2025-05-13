@@ -21,5 +21,3 @@ clean:
 	@echo "🧹 Cleaning up..."
 	rm -rf $(VENV)
 	find . -type d -name "__pycache__" -exec rm -r {} +
-
-

@@ -86,11 +86,11 @@ fileInput.addEventListener('change', async (e) => {
 
                 const tags = summaryText
                     .split('\n')
-                    .map(function(line) { 
-                        return line.trim().replace(/^[-•]\s*/, ''); 
+                    .map(function(line) {
+                        return line.trim().replace(/^[-•]\s*/, '');
                     })
-                    .filter(function(line) { 
-                        return line.length > 0; 
+                    .filter(function(line) {
+                        return line.length > 0;
                     });
 
                 if (tags.length > 0) {

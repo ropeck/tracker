@@ -1,10 +1,13 @@
+[tool.black]
+line-length = 80
+
 [tool.ruff]
 line-length = 80
 exclude = ["scripts/__init__.py", "tests/__init__.py"]
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812", "LOG015", "G004"]
+ignore = ["ANN101", "COM812", "G004", "ANN401", "RUF100"]
 
 per-file-ignores = { "tests/*" = ["S101", "D103", "D100", "ANN001", "ARG001"] }
 

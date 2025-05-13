@@ -9,10 +9,11 @@ from scripts import rebuild
 from scripts.rebuild import should_rebuild_db
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.rebuild.storage.Client")
-async def test_restore_returns_false_when_no_snapshots(mock_storage_client
-                                                       ) -> None:
+async def test_restore_returns_false_when_no_snapshots(
+    mock_storage_client,
+) -> None:
     bucket_mock = MagicMock()
     bucket_mock.list_blobs.return_value = []
     mock_storage_client.return_value.bucket.return_value = bucket_mock
@@ -21,7 +22,7 @@ async def test_restore_returns_false_when_no_snapshots(mock_storage_client
     assert result is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.rebuild.storage.Client")
 @patch("scripts.rebuild.rebuild_db_from_gcs")
 @patch("scripts.rebuild.aiosqlite.connect")
@@ -59,7 +60,7 @@ async def test_restore_db_uses_latest_snapshot(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.rebuild.storage.Client")
 @patch("scripts.rebuild.add_image", new_callable=AsyncMock)
 @patch("scripts.rebuild.add_tag", new_callable=AsyncMock)
@@ -97,9 +98,9 @@ async def test_rebuild_from_gcs_filters_by_timestamp(
     assert mock_link.call_count == 2  # One for each tag  # noqa: PLR2004
 
 
-def test_should_rebuild_db_with_force_env(tmp_path: Path,
-                                          monkeypatch: pytest.MonkeyPatch
-                                          ) -> None:
+def test_should_rebuild_db_with_force_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     dummy_db = tmp_path / "metadata.db"
     dummy_db.touch()
     monkeypatch.setattr("scripts.rebuild.DB_PATH", dummy_db)
@@ -114,16 +115,16 @@ def test_should_rebuild_db_with_force_env(tmp_path: Path,
         else:
             os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert result is False, (
-            f"Expected False for FORCE_REBUILD={flag!r}, got {result}"
-        )
+        assert (
+            result is False
+        ), f"Expected False for FORCE_REBUILD={flag!r}, got {result}"
 
     for flag in true_flags:
         os.environ["FORCE_REBUILD"] = flag
         result = should_rebuild_db()
-        assert result is True, (
-            f"Expected True for FORCE_REBUILD={flag!r}, got {result}"
-        )
+        assert (
+            result is True
+        ), f"Expected True for FORCE_REBUILD={flag!r}, got {result}"
 
     os.environ.pop("FORCE_REBUILD", None)
 
@@ -137,10 +138,10 @@ def test_should_rebuild_db_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert should_rebuild_db() is True
 
 
-@pytest.mark.asyncio
-async def test_should_rebuild_db_when_db_exists(tmp_path: Path,
-                                                monkeypatch: pytest.MonkeyPatch
-                                                ) -> None:
+@pytest.mark.asyncio()
+async def test_should_rebuild_db_when_db_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     dummy_db = tmp_path / "metadata.db"
     dummy_db.touch()
 
@@ -161,13 +162,13 @@ def test_should_rebuild_db_when_no_db(
     assert should_rebuild_db() is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.rebuild.storage.Client")
 @patch("scripts.rebuild.add_image", new_callable=AsyncMock)
 @patch("scripts.rebuild.add_tag", new_callable=AsyncMock)
 @patch("scripts.rebuild.link_image_tag", new_callable=AsyncMock)
 @patch("scripts.rebuild.init_db", new_callable=AsyncMock)
-async def test_rebuild_skips_empty_summary( # noqa: PLR0913
+async def test_rebuild_skips_empty_summary(  # noqa: PLR0913
     mock_init,
     mock_link,
     mock_add_tag,

@@ -65,8 +65,8 @@ When an item has no clear match, the app may:
 
 ## 🧠 Philosophy
 
-Not all clutter is trash.  
-Some things don’t belong *yet*.  
+Not all clutter is trash.
+Some things don’t belong *yet*.
 This system learns how *you* assign meaning—and helps you build a place for things that deserve to be kept.
 
 
@@ -110,4 +110,3 @@ Use this to identify:
 - Clutter hot zones
 - Hidden long-term storage
 - Forgotten active projects
-

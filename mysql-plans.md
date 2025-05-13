@@ -4,7 +4,7 @@
 
 ## 1. **Database Schema**
 
-You'll need a tiny but powerful set of tables:  
+You'll need a tiny but powerful set of tables:
 ![alt text](static/home-app-schema-diagram.png)
 
 ```sql
@@ -29,8 +29,8 @@ CREATE TABLE image_tags (
 );
 ```
 
-✅ **One image → multiple tags**  
-✅ **One tag → multiple images**  
+✅ **One image → multiple tags**
+✅ **One tag → multiple images**
 ✅ **Simple join queries for filtering**
 
 ---
@@ -175,7 +175,7 @@ spec:
 - We can share this volume with the upload images if needed, or split them if preferred later.
 - If you're using Kubernetes namespaces, make sure PVC and Deployment are in the same namespace.
 
-✅ **Database survives pod restarts**  
+✅ **Database survives pod restarts**
 ✅ **Keeps uploads + metadata tightly together**
 
 ---
@@ -310,4 +310,3 @@ if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
 
 
 Ensure that your application has the necessary permissions to access GCS and that the `google-cloud-storage` Python package is installed.
- 

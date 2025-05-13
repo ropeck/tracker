@@ -1,6 +1,6 @@
 # Schedule Template
 
-_"I love deadlines. I love the whooshing sound they make as they go by."_  
+_"I love deadlines. I love the whooshing sound they make as they go by."_
 — Douglas Adams
 
 Use this schedule not to stay rigidly on track, but to avoid spinning your wheels.

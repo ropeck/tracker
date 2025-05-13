@@ -51,11 +51,10 @@ You can also ask:
 
 ## 🧠 Why This Matters
 
-Humans don’t organize perfectly in the moment.  
+Humans don’t organize perfectly in the moment.
 This feature allows for:
-- Natural creative mess  
-- Structured reentry into order  
+- Natural creative mess
+- Structured reentry into order
 - Forgiveness + nudges without judgment
 
 It supports how we **really live**, not how we think we *should*.
-

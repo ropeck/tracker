@@ -25,20 +25,20 @@ from scripts import logger  # noqa: E402
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client.from_service_account_json")
 @patch("scripts.logger.process_uploads", new_callable=AsyncMock)
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_lifespan_runs(mock_worker, mock_client, mock_exists) -> None:
     app = logger.app
     async with app.router.lifespan_context(app):
         mock_worker.assert_called_once()
 
 
-
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch("scripts.logger.storage.Client")
 @patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_file_found(
-    mock_from_json, mock_client, mock_exists) -> None:
+    mock_from_json, mock_client, mock_exists
+) -> None:
     class FakeBlob:
         def exists(self) -> bool:
             return True
@@ -67,13 +67,15 @@ async def test_gcs_proxy_file_found(
 
     transport = ASGITransport(app=logger.app)
     async with AsyncClient(
-        transport=transport, base_url="http://test") as client:
+        transport=transport, base_url="http://test"
+    ) as client:
         res = await client.get("/uploads/test.jpg")
         assert res.status_code == 200  # noqa: PLR2004
         assert res.headers["content-type"] == "image/jpeg"
         assert res.content == b"test content"
 
-@pytest.mark.asyncio
+
+@pytest.mark.asyncio()
 @patch("scripts.logger.os.path.exists", return_value=True)
 @patch(
     "scripts.logger.storage.Client.from_service_account_json",
@@ -88,7 +90,7 @@ async def test_gcs_proxy_internal_error(mock_client, mock_exists) -> None:
         assert res.status_code == 500  # noqa: PLR2004
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_search_query_logic(tmp_path: logger.Path) -> None:
     # Create dummy image and thumbnail files
     (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff")
@@ -133,7 +135,9 @@ async def test_search_query_logic(tmp_path: logger.Path) -> None:
         ) -> None:
             await self.conn.close()
 
-    def patched_connect(path: str, *args: Any, **kwargs: Any) -> FakeDB:  # noqa: ANN401
+    def patched_connect(
+        path: str, *args: Any, **kwargs: Any
+    ) -> FakeDB:  # noqa: ANN401
         return FakeDB(db_path)
 
     with (
@@ -149,7 +153,7 @@ async def test_search_query_logic(tmp_path: logger.Path) -> None:
             assert "/uploads/thumb/test.jpg.thumb.jpg" in res.text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cleanup_old_backups(tmp_path: logger.Path) -> None:
     old_file = tmp_path / "backup-2000-01-01.sqlite3"
     old_file.write_text("x")

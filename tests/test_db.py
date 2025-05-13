@@ -26,7 +26,7 @@ async def temp_db(monkeypatch) -> AsyncGenerator[Any, Any]:
     Path(path).unlink()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_add_and_link_image_tag(temp_db) -> None:
     await db_module.add_image("cat.jpg", "Cute Cat", "2025-05-07")
     await db_module.add_tag("adorable")
@@ -56,7 +56,7 @@ async def test_add_and_link_image_tag(temp_db) -> None:
         assert link is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_ignore_duplicate_inserts(temp_db) -> None:
     await db_module.add_tag("sunny")
     await db_module.add_tag("sunny")  # Should be ignored
@@ -81,7 +81,7 @@ async def test_ignore_duplicate_inserts(temp_db) -> None:
         assert count[0] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_tags_are_linked_correctly(temp_db) -> None:
     await db_module.add_image("cloud.jpg", "Sky Scene", "2025-05-07")
     await db_module.add_tag("sky")
@@ -104,7 +104,7 @@ async def test_tags_are_linked_correctly(temp_db) -> None:
         assert set(tags) == {"sky", "weather"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_get_db_yields_connection(tmp_path) -> None:
     test_db_path = tmp_path / "test.db"
 

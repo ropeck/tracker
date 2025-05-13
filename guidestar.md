@@ -59,4 +59,3 @@
    - `/upload` → photo + auto-analysis
    - `/query` → text query interface
 3. 📄 A schema + test data + CLI query tool?
-

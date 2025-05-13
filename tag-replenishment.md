@@ -60,7 +60,6 @@ Reserve specific tags for system continuity:
 
 ## 🐱 Why This Matters
 
-Without available tags, nothing can be found.  
-Without the ability to *track the tags themselves*, the system collapses into recursive absurdity.  
+Without available tags, nothing can be found.
+Without the ability to *track the tags themselves*, the system collapses into recursive absurdity.
 Plan accordingly.
-

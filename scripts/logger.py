@@ -1,5 +1,7 @@
 """Endpoints for tracker app."""
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
@@ -7,12 +9,11 @@ import logging
 import mimetypes
 import os
 import shutil
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from os import getenv
 from pathlib import Path
-from typing import Annotated, BinaryIO, NoReturn
+from typing import TYPE_CHECKING, Annotated, BinaryIO, NoReturn
 
 import aiofiles  # make sure this is imported
 import aiosqlite
@@ -51,6 +52,9 @@ from scripts.rebuild import rebuild_db_from_gcs, restore_db_from_gcs_snapshot
 from scripts.util import clean_tag_name, utc_now_iso
 from scripts.vision import analyze_image_with_openai, call_openai_chat
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
 load_dotenv()
 
 log = logging.getLogger(__name__)
@@ -69,7 +73,7 @@ templates = Jinja2Templates(directory="scripts/templates")
 processing_queue = asyncio.Queue()
 
 # Background task holder (optional, for clean shutdown)
-upload_worker_task = None
+upload_worker_task = None  # pylint: disable=invalid-name
 
 
 async def process_uploads() -> None:
@@ -81,11 +85,10 @@ async def process_uploads() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     """Handles startup and shutdown tasks for the FastAPI app."""
     global upload_worker_task  # noqa: PLW0603
 
-    del app  # unused arg
     upload_worker_task = asyncio.create_task(process_uploads())
     log.info("🚀 Upload processing queue started.")
 
@@ -233,12 +236,14 @@ async def process_image(upload_info: tuple) -> None:
         async with aiofiles.open(META_FILE) as f:
             meta_text = await f.read()
             meta = json.loads(meta_text)
-        meta.append({
-            "filename": filename,
-            "summary": result["summary"],
-            "label": label,
-            "timestamp": utc_now_iso(),
-        })
+        meta.append(
+            {
+                "filename": filename,
+                "summary": result["summary"],
+                "label": label,
+                "timestamp": utc_now_iso(),
+            }
+        )
         async with aiofiles.open(META_FILE, "w") as f:
             await f.write(json.dumps(meta, indent=2))
 
@@ -329,7 +334,7 @@ async def gcs_proxy(path: str, request: Request) -> JSONResponse:
     del request  # unused arg
 
     gcs_path = f"{GCS_UPLOAD_PREFIX}/{path}"
-    logging.info(f"📦 GCS proxy requested: {gcs_path}")
+    log.info(f"📦 GCS proxy requested: {gcs_path}")
 
     try:
         key_path = "/app/service-account-key.json"
@@ -341,7 +346,7 @@ async def gcs_proxy(path: str, request: Request) -> JSONResponse:
         blob = bucket.blob(gcs_path)
 
         if not blob.exists():
-            logging.warning(f"❌ GCS file not found: {gcs_path}")
+            log.warning(f"❌ GCS file not found: {gcs_path}")
             return JSONResponse(
                 status_code=404,
                 content={"error": "File not found", "path": gcs_path},
@@ -361,7 +366,7 @@ async def gcs_proxy(path: str, request: Request) -> JSONResponse:
             headers={"Content-Disposition": f'inline; filename="{path}"'},
         )
     except Exception as e:
-        logging.exception(f"🔥 Error serving GCS file: {gcs_path}")
+        log.exception(f"🔥 Error serving GCS file: {gcs_path}")
         return JSONResponse(
             status_code=500,
             content={
@@ -454,13 +459,15 @@ async def view_photos(
     for row in rows:
         filename, timestamp, tags_str = row
         tags = tags_str.split(",") if tags_str else []
-        photos.append({
-            "filename": filename,
-            "timestamp": timestamp,
-            "tags": tags,
-            "proxy_url": f"/uploads/{filename}",
-            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-        })
+        photos.append(
+            {
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            }
+        )
     return templates.TemplateResponse(
         request, "photo_gallery_template.html", {"photos": photos}
     )
@@ -508,13 +515,15 @@ async def search_photos(request: Request, q: str = "") -> HTMLResponse:
             tags = tags_str.split(",") if tags_str else []
             if query and not any(query in tag.lower() for tag in tags):
                 continue
-            photos.append({
-                "filename": filename,
-                "timestamp": timestamp,
-                "tags": tags,
-                "proxy_url": f"/uploads/{filename}",
-                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-            })
+            photos.append(
+                {
+                    "filename": filename,
+                    "timestamp": timestamp,
+                    "tags": tags,
+                    "proxy_url": f"/uploads/{filename}",
+                    "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+                }
+            )
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -562,13 +571,15 @@ async def search_by_prompt(
         normalized_tags = [clean_tag_name(t) for t in tags]
         if not any(tag in matched_tags for tag in normalized_tags):
             continue
-        photos.append({
-            "filename": filename,
-            "timestamp": timestamp,
-            "tags": tags,
-            "proxy_url": f"/uploads/{filename}",
-            "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
-        })
+        photos.append(
+            {
+                "filename": filename,
+                "timestamp": timestamp,
+                "tags": tags,
+                "proxy_url": f"/uploads/{filename}",
+                "thumb_url": f"/uploads/thumb/{filename}.thumb.jpg",
+            }
+        )
 
     return templates.TemplateResponse(
         request,
@@ -638,8 +649,9 @@ async def trigger_backup(
         )
 
     def _invalid_token_error(e: Exception) -> NoReturn:
-        raise HTTPException(status_code=403,
-                            detail="Invalid service account token") from e
+        raise HTTPException(
+            status_code=403, detail="Invalid service account token"
+        ) from e
 
     try:
         info = jwt.decode(token, verify=False)
@@ -659,7 +671,6 @@ async def trigger_backup(
     return await perform_backup()
 
 
-
 async def perform_backup() -> str:
     """Backup DB  and upload to GCS.
 
@@ -673,15 +684,21 @@ async def perform_backup() -> str:
     if not BACKUP_DB_PATH.exists():
         raise HTTPException(status_code=500, detail="No DB to back up")
 
-    async with (aiosqlite.connect(BACKUP_DB_PATH) as src_db,
-        aiosqlite.connect(backup_path) as dest_db):
+    async with (
+        aiosqlite.connect(BACKUP_DB_PATH) as src_db,
+        aiosqlite.connect(backup_path) as dest_db,
+    ):
         await src_db.backup(dest_db)
 
     if backup_path.exists():
         with Path.open(BACKUP_DB_PATH, "rb") as f:
-            current_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324  # noqa: S324
+            current_hash = hashlib.md5(  # noqa: S324
+                f.read()
+            ).hexdigest()  # nosec B324  # noqa: S324
         with Path.open(backup_path, "rb") as f:
-            backup_hash = hashlib.md5(f.read()).hexdigest()  # nosec B324  # noqa: S324
+            backup_hash = hashlib.md5(  # noqa: S324
+                f.read()
+            ).hexdigest()  # nosec B324  # noqa: S324
         if current_hash == backup_hash:
             log.info("📦 No DB changes since last backup. Skipping upload.")
             return {"status": "skipped", "reason": "No changes detected."}
