@@ -10,7 +10,7 @@ def utc_now_iso() -> str:
 
 
 def parse_utc_timestamp(ts: str) -> datetime:
-    """Make stanard tz datetime from time string.
+    """Make standard tz datetime from time string.
 
     Args:
         ts (str): String timestamp

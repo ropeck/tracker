@@ -33,16 +33,17 @@ async def test_rebuild_route() -> None:
 
 @pytest.mark.asyncio
 @patch("scripts.logger.os.path.exists", return_value=True)
-@patch("scripts.logger.storage.Client")  # ✅ critical to mock ADC fallback
+@patch("scripts.logger.storage.Client")
 @patch("scripts.logger.storage.Client.from_service_account_json")
 async def test_gcs_proxy_file_found_other(
-    mock_from_json, mock_client, mock_exists) -> None:
+    mock_from_json, mock_client, mock_exists
+) -> None:
+    # Define a blob that returns proper content and headers
     class FakeBlob:
         def exists(self) -> bool:
             return True
 
         def open(self, mode="rb") -> BytesIO:
-            del mode
             return BytesIO(b"test content")
 
         @property
@@ -51,25 +52,26 @@ async def test_gcs_proxy_file_found_other(
 
     class FakeBucket:
         def blob(self, name: str) -> FakeBlob:
-            del name
             return FakeBlob()
 
     class FakeClient:
         def bucket(self, name: str) -> FakeBucket:
-            del name
             return FakeBucket()
 
     fake_client = FakeClient()
+
+    # Apply same return value to both ADC and JSON path
     mock_from_json.return_value = fake_client
     mock_client.return_value = fake_client
 
+    # Run the test
     transport = ASGITransport(app=logger.app)
-    async with AsyncClient(
-        transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get("/uploads/test.jpg")
-        assert res.status_code == 200  # noqa: PLR2004
-        assert res.headers["content-type"] == "image/jpeg"
-        assert res.content == b"test content"
+
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "image/jpeg"
+    assert res.content == b"test content"
 
 
 
